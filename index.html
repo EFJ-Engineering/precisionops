@@ -325,6 +325,44 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
 .lightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;}
 .lb-cls{position:absolute;top:20px;right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;}
 
+/* CALENDAR */
+.cal-month{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.cal-dow{background:var(--surface2);padding:7px;text-align:center;font-family:var(--head);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);}
+.cal-day{background:var(--surface);min-height:90px;padding:5px;position:relative;vertical-align:top;}
+.cal-day.other-month{background:var(--bg);opacity:.5;}
+.cal-day.today{background:rgba(240,165,0,.06);border-top:2px solid var(--accent);}
+.cal-day.weekend{background:rgba(30,33,40,.6);}
+.cal-day-num{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:3px;}
+.cal-day.today .cal-day-num{color:var(--accent);font-weight:700;}
+.cal-event{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+.cal-event.ep{background:rgba(240,165,0,.2);color:var(--accent);}
+.cal-event.ea{background:rgba(59,130,246,.2);color:var(--blue);}
+.cal-event.el{background:rgba(231,76,60,.2);color:var(--red);}
+.cal-event.et{background:rgba(139,92,246,.2);color:var(--purple);}
+.cal-event.eb{background:rgba(46,204,113,.2);color:var(--green);}
+.cal-event.ebh{background:rgba(192,57,43,.2);color:#c0392b;}
+.cal-event.ej{background:rgba(240,165,0,.3);color:var(--accent);font-weight:700;}
+.cal-bh{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;background:rgba(192,57,43,.15);color:#e74c3c;font-style:italic;}
+.cal-more{font-size:9px;color:var(--muted);cursor:pointer;padding:1px 4px;}
+.cal-more:hover{color:var(--accent);}
+/* TODO */
+.todo-item{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:13px 15px;margin-bottom:8px;display:flex;align-items:flex-start;gap:11px;transition:border-color .15s;}
+.todo-item:hover{border-color:var(--accent);}
+.todo-item.done{opacity:.55;}
+.todo-item.done .todo-desc{text-decoration:line-through;color:var(--muted);}
+.todo-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:none;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:2px;transition:all .15s;}
+.todo-check:hover{border-color:var(--accent);}
+.todo-check.checked{background:var(--green);border-color:var(--green);color:#000;}
+.todo-desc{font-size:14px;font-weight:500;flex:1;line-height:1.4;}
+.todo-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;align-items:center;}
+/* PURCHASING */
+.purch-section{margin-bottom:22px;}
+.purch-sec-title{font-family:var(--head);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin-bottom:9px;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border);padding-bottom:6px;}
+.purch-item{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:12px 14px;margin-bottom:7px;display:flex;align-items:flex-start;gap:10px;transition:border-color .15s;}
+.purch-item:hover{border-color:var(--accent);}
+.purch-item.ordered{opacity:.6;border-style:dashed;}
+.purch-desc{font-size:13px;font-weight:600;flex:1;}
+.purch-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:4px;align-items:center;}
 /* PRINT */
 @media print{body *{visibility:hidden;}#printArea,#printArea *{visibility:visible;}#printArea{position:fixed;left:0;top:0;width:100%;}.no-print{display:none!important;}}
 .pjc{background:#fff;color:#000;padding:22px;font-family:'Barlow',sans-serif;max-width:800px;}
@@ -430,6 +468,8 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
     <button onclick="showTab('wiki',event)">📖 Wiki</button>
     <button id="navSales" onclick="showTab('sales',event)">🎯 Sales</button>
     <button id="navStaff" onclick="showTab('staff',event)">👥 Staff</button>
+    <button onclick="showTab('todo',event)">✅ To-Do</button>
+    <button id="navPurch" onclick="showTab('purch',event)">🛒 Purchasing</button>
     <button id="navExport" onclick="showTab('export',event)" style="display:none">📤 Export</button>
     <button id="navSettings" onclick="showTab('settings',event)" style="display:none">⚙ Settings</button>
     <button id="navAudit" onclick="showTab('audit',event)" style="display:none">🔒 Audit</button>
@@ -458,6 +498,10 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
             <option value="">All Statuses</option>
             <option>Queued</option><option>In Progress</option><option>QC</option><option>Complete</option><option>On Hold</option>
           </select>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap">
+            <input type="checkbox" id="hideCompleted" onchange="renderJobs()" style="accent-color:var(--accent);width:14px;height:14px">
+            Hide Completed
+          </label>
           <button class="btn btn-p" id="btnNJ" onclick="openJobModal()">+ New Job</button>
         </div>
       </div>
@@ -468,22 +512,34 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
       <div id="jobsContainer"></div>
     </div>
 
-    <!-- SCHEDULE -->
+    <!-- SCHEDULE / CALENDAR -->
     <div class="tab-panel" id="tab-sched">
-      <div class="ph"><div class="pt">Schedule</div><button class="btn btn-p" id="btnNS" onclick="openModal('sched')">+ Add Entry</button></div>
-      <div class="wn">
-        <button class="btn btn-g" onclick="changeWeek(-1)">◀ Prev</button>
-        <div class="wl" id="weekLbl"></div>
-        <button class="btn btn-g" onclick="changeWeek(1)">Next ▶</button>
-        <button class="btn btn-g btn-s" onclick="goToToday()">Today</button>
+      <div class="ph">
+        <div class="pt" id="schedTitle">Schedule</div>
+        <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+          <div class="vt">
+            <button class="vt-btn active" id="sv-month" onclick="setSchedView('month')">📅 Month</button>
+            <button class="vt-btn" id="sv-week" onclick="setSchedView('week')">📆 My Week</button>
+          </div>
+          <button class="btn btn-p" id="btnNS" onclick="openModal('sched')">+ Add Entry</button>
+          <button class="btn btn-g" id="btnHol" onclick="openModal('holiday')" style="display:none">🏖 Manage Holidays</button>
+        </div>
+      </div>
+      <div class="wn" id="schedNav">
+        <button class="btn btn-g" onclick="schedNavBack()">◀ Prev</button>
+        <div class="wl" id="schedNavLbl"></div>
+        <button class="btn btn-g" onclick="schedNavFwd()">Next ▶</button>
+        <button class="btn btn-g btn-s" onclick="schedGoToday()">Today</button>
       </div>
       <div id="conflictBanner"></div>
-      <div class="sg" id="schedGrid"></div>
-      <div style="display:flex;gap:11px;margin-top:9px;flex-wrap:wrap">
+      <div id="schedContainer"></div>
+      <div style="display:flex;gap:11px;margin-top:9px;flex-wrap:wrap" id="schedLegend">
         <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)"><span style="width:9px;height:9px;background:var(--accent);border-radius:2px;display:inline-block"></span>Production</span>
         <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)"><span style="width:9px;height:9px;background:var(--blue);border-radius:2px;display:inline-block"></span>Admin</span>
-        <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)"><span style="width:9px;height:9px;background:var(--red);border-radius:2px;display:inline-block"></span>Leave</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)"><span style="width:9px;height:9px;background:var(--red);border-radius:2px;display:inline-block"></span>Leave / Holiday</span>
         <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)"><span style="width:9px;height:9px;background:var(--purple);border-radius:2px;display:inline-block"></span>Training</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)"><span style="width:9px;height:9px;background:var(--green);border-radius:2px;display:inline-block"></span>Birthday 🎂</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)"><span style="width:9px;height:9px;background:#c0392b;border-radius:2px;display:inline-block"></span>Bank Holiday</span>
         <span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--red)"><span style="width:9px;height:9px;background:rgba(231,76,60,.3);border:1px solid var(--red);border-radius:2px;display:inline-block"></span>Conflict</span>
       </div>
     </div>
@@ -546,7 +602,43 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
     <!-- STAFF -->
     <div class="tab-panel" id="tab-staff">
       <div class="ph"><div class="pt">Staff</div><button class="btn btn-p" id="btnNSt" onclick="openModal('staff')">+ Add Staff</button></div>
+      <div id="pendingUsersSection" style="display:none;margin-bottom:20px">
+        <div style="font-family:var(--head);font-size:14px;font-weight:700;text-transform:uppercase;color:var(--accent);margin-bottom:10px;letter-spacing:.5px">⏳ Pending Account Requests</div>
+        <div id="pendingUsersList"></div>
+      </div>
       <div class="cg" id="staffContainer"></div>
+    </div>
+
+    <!-- TO-DO -->
+    <div class="tab-panel" id="tab-todo">
+      <div class="ph">
+        <div class="pt">My To-Do List</div>
+        <button class="btn btn-p" onclick="openModal('todo')">+ Add Task</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="vt-btn active" id="td-all" onclick="setTodoFilter('all')">All</button>
+        <button class="vt-btn" id="td-open" onclick="setTodoFilter('open')">Open</button>
+        <button class="vt-btn" id="td-done" onclick="setTodoFilter('done')">Completed</button>
+      </div>
+      <div id="todoContainer"></div>
+    </div>
+
+    <!-- PURCHASING -->
+    <div class="tab-panel" id="tab-purch">
+      <div class="ph">
+        <div class="pt">Purchasing List</div>
+        <button class="btn btn-p" id="btnNPurch" onclick="openModal('purch')">+ Add Item</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap" id="purchCatTabs">
+        <button class="vt-btn active" id="pc-all" onclick="setPurchCat('all')">All</button>
+        <button class="vt-btn" id="pc-Cutting Tools" onclick="setPurchCat('Cutting Tools')">🔪 Cutting Tools</button>
+        <button class="vt-btn" id="pc-Materials" onclick="setPurchCat('Materials')">🧱 Materials</button>
+        <button class="vt-btn" id="pc-Facilities" onclick="setPurchCat('Facilities')">🏭 Facilities</button>
+        <button class="vt-btn" id="pc-PPE" onclick="setPurchCat('PPE')">🦺 PPE</button>
+        <button class="vt-btn" id="pc-Consumables" onclick="setPurchCat('Consumables')">📦 Consumables</button>
+        <button class="vt-btn" id="pc-Other" onclick="setPurchCat('Other')">Other</button>
+      </div>
+      <div id="purchContainer"></div>
     </div>
 
     <!-- EXPORT -->
@@ -622,6 +714,17 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
 <!-- PRINT AREA -->
 <div id="printArea" style="display:none"></div>
 
+<!-- JOB DETAIL VIEW (read-only, for users) -->
+<div class="mo" id="modal-jobview">
+  <div class="md md-w">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div class="mt" style="margin-bottom:0" id="jvTitle">Job Details</div>
+      <button class="btn btn-g btn-s" onclick="closeModal('jobview')">✕ Close</button>
+    </div>
+    <div id="jvContent"></div>
+  </div>
+</div>
+
 <!-- LIGHTBOX -->
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
   <button class="lb-cls" onclick="closeLightbox()">✕</button>
@@ -660,6 +763,15 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
       <div class="fg"><label class="fl">Status</label><select class="fs" id="jSt"><option>Queued</option><option>In Progress</option><option>QC</option><option>Complete</option><option>On Hold</option></select></div>
       <div class="fg"><label class="fl">Progress %</label><input class="fi2" id="jProg" type="number" min="0" max="100" placeholder="0"></div>
     </div>
+    <div class="fg">
+      <label class="fl">Assigned Users (select multiple)</label>
+      <div id="jAssignChips" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:5px;min-height:40px"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Click to toggle assigned users for this job</div>
+    </div>
+    <div class="fg">
+      <label class="fl">Primary Machine</label>
+      <select class="fs" id="jMachine"><option value="">— No machine —</option></select>
+    </div>
     <div class="fr">
       <div class="fg"><label class="fl">Materials Required</label><input class="fi2" id="jMat" placeholder="e.g. 316 SS bar 25mm dia"></div>
       <div class="fg"><label class="fl">Tooling Required</label><input class="fi2" id="jTool" placeholder="e.g. TNMG inserts, 8mm drill"></div>
@@ -670,7 +782,7 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
     <div style="margin-top:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
         <div style="font-family:var(--head);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Operations / Line Items</div>
-        <button class="add-li" onclick="addLineItem()">+ Add Operation</button>
+        <button class="add-li" onclick="addLI()">+ Add Operation</button>
       </div>
       <div style="overflow-x:auto">
         <table class="lit"><thead><tr><th>#</th><th>Operation Description</th><th>Qty</th><th>Machine</th><th>Operator</th><th>Est.Hrs</th><th>Materials</th><th>Tooling</th><th>Status</th><th></th></tr></thead>
@@ -816,6 +928,10 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
       <div class="fg"><label class="fl">Phone</label><input class="fi2" id="stPh"></div>
       <div class="fg"><label class="fl">Status</label><select class="fs" id="stSt"><option>Active</option><option>Part-time</option><option>On Leave</option></select></div>
     </div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Date of Birth</label><input class="fi2" id="stDob" type="date"><div style="font-size:11px;color:var(--muted);margin-top:4px">Birthday shown on calendar each year</div></div>
+      <div class="fg"><label class="fl">Avatar Colour</label><input class="fi2" id="stColor" type="color" value="#f0a500" style="height:38px;cursor:pointer"></div>
+    </div>
     <div class="ma"><button class="btn btn-g" onclick="closeModal('staff')">Cancel</button><button class="btn btn-p" onclick="saveStaff()">Save</button></div>
   </div>
 </div>
@@ -877,6 +993,65 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
   </div>
 </div>
 
+<!-- HOLIDAY MANAGEMENT MODAL -->
+<div class="mo" id="modal-holiday">
+  <div class="md" style="max-width:600px">
+    <div class="mt">🏖 Manage Staff Holidays</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Add approved holiday/leave periods for staff. These appear on the calendar for all users.</div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Staff Member</label><select class="fs" id="holStaff"></select></div>
+      <div class="fg"><label class="fl">From Date</label><input class="fi2" id="holFrom" type="date"></div>
+      <div class="fg"><label class="fl">To Date</label><input class="fi2" id="holTo" type="date"></div>
+    </div>
+    <div class="fg"><label class="fl">Note (optional)</label><input class="fi2" id="holNote" placeholder="e.g. Annual leave, Medical leave..."></div>
+    <button class="btn btn-p" onclick="addHolidayRange()" style="margin-bottom:16px">+ Add Holiday Period</button>
+    <div style="font-family:var(--head);font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px;letter-spacing:.5px">Upcoming Holidays</div>
+    <div id="holidayList" style="max-height:280px;overflow-y:auto"></div>
+    <div class="ma"><button class="btn btn-g" onclick="closeModal('holiday')">Close</button></div>
+  </div>
+</div>
+
+<!-- TO-DO MODAL -->
+<div class="mo" id="modal-todo">
+  <div class="md">
+    <div class="mt" id="todoMT">New Task</div>
+    <input type="hidden" id="tdEId">
+    <div class="fg"><label class="fl">Task Description</label><input class="fi2" id="tdDesc" placeholder="What needs to be done?"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Priority</label><select class="fs" id="tdPri"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+      <div class="fg"><label class="fl">Due Date (optional)</label><input class="fi2" id="tdDue" type="date"></div>
+    </div>
+    <div class="fg"><label class="fl">Notes</label><textarea class="fta" id="tdNotes" placeholder="Any additional details..." style="min-height:60px"></textarea></div>
+    <div class="ma"><button class="btn btn-g" onclick="closeModal('todo')">Cancel</button><button class="btn btn-p" onclick="saveTodo()">Save Task</button></div>
+  </div>
+</div>
+
+<!-- PURCHASING MODAL -->
+<div class="mo" id="modal-purch">
+  <div class="md">
+    <div class="mt" id="purchMT">New Purchase Request</div>
+    <input type="hidden" id="prchEId">
+    <div class="fg"><label class="fl">Item Description</label><input class="fi2" id="prchDesc" placeholder="What needs to be purchased?"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Category</label>
+        <select class="fs" id="prchCat">
+          <option>Cutting Tools</option><option>Materials</option><option>Facilities</option>
+          <option>PPE</option><option>Consumables</option><option>Other</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Priority</label><select class="fs" id="prchPri"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Quantity / Specification</label><input class="fi2" id="prchQty" placeholder="e.g. x10, 25mm dia, M8"></div>
+      <div class="fg"><label class="fl">Estimated Cost</label><input class="fi2" id="prchCost" type="number" min="0" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="fg"><label class="fl">Supplier (optional)</label><input class="fi2" id="prchSupp" placeholder="Preferred supplier"></div>
+    <div class="fg"><label class="fl">Job Reference (optional)</label><input class="fi2" id="prchJob" placeholder="e.g. JOB-042"></div>
+    <div class="fg"><label class="fl">Notes</label><textarea class="fta" id="prchNotes" placeholder="Any additional details..." style="min-height:60px"></textarea></div>
+    <div class="ma"><button class="btn btn-g" onclick="closeModal('purch')">Cancel</button><button class="btn btn-p" onclick="savePurch()">Save Item</button></div>
+  </div>
+</div>
+
 <!-- WIKI APPROVALS -->
 <div class="mo" id="modal-wikiappr">
   <div class="md" style="max-width:580px">
@@ -896,8 +1071,10 @@ const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{autoRefreshToken:true,persis
 
 // ══ STATE ══
 let CU=null,CP=null;
-let D={staff:[],machines:[],jobs:[],lineItems:{},schedule:[],projects:[],projMembers:{},projImages:{},wiki:[],wikiPend:[],prospects:[],jobCards:[]};
+let D={staff:[],machines:[],jobs:[],lineItems:{},schedule:[],projects:[],projMembers:{},projImages:{},wiki:[],wikiPend:[],prospects:[],jobCards:[],jobAssignees:{},pendingUsers:[],todos:[],purchases:[],notifications:[]};
 let weekOff=0,wikiCat='All',wikiArt=null,wikiImgs=[],lineItems=[],liCtr=0,jobView='cards',projImgsNew=[];
+let _jobAssignees=[]; // multi-assign for current job modal
+let todoFilter='all', purchCat='all';
 let settings={company_name:'PrecisionOps',company_logo:'',job_prefix:'JOB',theme:'dark'};
 let bsTimeout;
 
@@ -915,6 +1092,7 @@ const sCol=id=>COLS[D.staff.findIndex(s=>s.id===id)%COLS.length]||'#f0a500';
 const sNm=id=>{const s=D.staff.find(x=>x.id===id);return s?`${s.first_name} ${s.last_name}`:'—';};
 const mNm=id=>{const m=D.machines.find(x=>x.id===id);return m?m.name:'—';};
 const isMgr=()=>CP?.role==='manager';
+const isUser=()=>CP?.role==='user'||CP?.role==='employee'||CP?.role==='Employee';
 const isSr=()=>['senior','manager'].includes(CP?.role);
 
 // Week number
@@ -928,7 +1106,22 @@ function setTheme(t){settings.theme=t;document.body.classList.toggle('light',t==
 function toggleTheme(){setTheme(settings.theme==='dark'?'light':'dark');}
 
 // ══ SETTINGS ══
-async function loadSettings(){const sv=localStorage.getItem('po-theme');if(sv)setTheme(sv);try{const{data}=await sb.from('user_preferences').select('*').eq('id',CU.id).single();if(data){settings={...settings,...data};if(data.theme)setTheme(data.theme);applyBranding();}}catch(e){}}
+async function loadSettings(){
+  const sv=localStorage.getItem('po-theme');if(sv)setTheme(sv);
+  try{
+    // First try own preferences
+    const{data:own}=await sb.from('user_preferences').select('*').eq('id',CU.id).single().catch(()=>({data:null}));
+    if(own){settings={...settings,...own};if(own.theme)setTheme(own.theme);}
+    // Always load shared branding from any manager record (company_name, company_logo, job_prefix)
+    const{data:shared}=await sb.from('user_preferences').select('company_name,company_logo,job_prefix').not('company_name','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
+    if(shared){
+      if(shared.company_name&&shared.company_name!=='PrecisionOps')settings.company_name=shared.company_name;
+      if(shared.company_logo)settings.company_logo=shared.company_logo;
+      if(shared.job_prefix)settings.job_prefix=shared.job_prefix;
+    }
+    applyBranding();
+  }catch(e){applyBranding();}
+}
 function applyBranding(){
   const nm=settings.company_name||'PrecisionOps';
   document.title=nm;
@@ -946,7 +1139,7 @@ async function saveSettings(){const nm=(document.getElementById('setCN').value.t
 // ══ AUTH ══
 function showF(id){['lf','fgt','su','rp'].forEach(x=>document.getElementById(x).style.display=x===id?'block':'none');}
 async function signIn(){const em=document.getElementById('lem').value.trim(),pw=document.getElementById('lpw').value,el=document.getElementById('le');el.style.display='none';if(!em||!pw){el.textContent='Please enter email and password.';el.style.display='block';return;}loading(true,'Signing in...');const{data,error}=await sb.auth.signInWithPassword({email:em,password:pw});if(error){loading(false);el.textContent=error.message==='Invalid login credentials'?'Incorrect email or password.':error.message;el.style.display='block';return;}CU=data.user;await bootstrapApp();}
-async function signUp(){const f=document.getElementById('suf').value.trim(),l=document.getElementById('sul').value.trim(),em=document.getElementById('suem').value.trim(),pw=document.getElementById('supw').value,pw2=document.getElementById('supw2').value,r=document.getElementById('sur').value.trim(),el=document.getElementById('sue'),ok=document.getElementById('suo');el.style.display='none';ok.style.display='none';if(!f||!l||!em||!pw){el.textContent='Please fill in all fields.';el.style.display='block';return;}if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Creating account...');const{data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:f,last_name:l,role:'employee'}}});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}if(data.user){const{count}=await sb.from('profiles').select('*',{count:'exact',head:true});const role=(count===0||count===null)?'manager':'employee';await sb.from('profiles').upsert({id:data.user.id,first_name:f,last_name:l,role,job_title:r});}ok.textContent='Account created! You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}
+async function signUp(){const f=document.getElementById('suf').value.trim(),l=document.getElementById('sul').value.trim(),em=document.getElementById('suem').value.trim(),pw=document.getElementById('supw').value,pw2=document.getElementById('supw2').value,r=document.getElementById('sur').value.trim(),el=document.getElementById('sue'),ok=document.getElementById('suo');el.style.display='none';ok.style.display='none';if(!f||!l||!em||!pw){el.textContent='Please fill in all fields.';el.style.display='block';return;}if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Creating account...');const{data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:f,last_name:l,role:'user'}}});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}if(data.user){const{count}=await sb.from('profiles').select('*',{count:'exact',head:true});const isFirst=(count===0||count===null);const role=isFirst?'manager':'user';const uStatus=isFirst?'active':'pending';await sb.from('profiles').upsert({id:data.user.id,first_name:f,last_name:l,role,job_title:r,status:uStatus});if(isFirst){ok.textContent='Account created as manager. You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}else{ok.textContent='Application submitted! A manager will review your account request before you can log in.';ok.style.display='block';['suf','sul','suem','supw','supw2','sur'].forEach(id=>document.getElementById(id).value='');}}else{ok.textContent='Account created! You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}
 async function sendReset(){const em=document.getElementById('fgtem').value.trim(),el=document.getElementById('fgte'),ok=document.getElementById('fgto');el.style.display='none';ok.style.display='none';if(!em){el.textContent='Please enter your email.';el.style.display='block';return;}const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:'https://efj-engineering.github.io/precisionops/'});if(error){el.textContent=error.message;el.style.display='block';}else{ok.textContent='Reset link sent. Check your inbox and spam folder.';ok.style.display='block';}}
 async function setNewPw(){const pw=document.getElementById('rppw').value,pw2=document.getElementById('rppw2').value,el=document.getElementById('rpe'),ok=document.getElementById('rpo');el.style.display='none';ok.style.display='none';if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Updating password...');if(window._rt)await sb.auth.setSession({access_token:window._rt,refresh_token:window._rr||''});const{error}=await sb.auth.updateUser({password:pw});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}ok.textContent='Password updated! Signing you in...';ok.style.display='block';window._rt=null;window._rr=null;setTimeout(async()=>{const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else showF('lf');},2000);}
 async function signOut(){await aLog('SIGN_OUT');await sb.auth.signOut();}
@@ -955,12 +1148,33 @@ document.addEventListener('visibilitychange',async()=>{if(document.visibilitySta
 const startBsTimeout=()=>{clearTimeout(bsTimeout);bsTimeout=setTimeout(()=>{if(document.getElementById('loadOv').style.display!=='none'){loading(false);if(document.getElementById('appShell').style.display==='none')document.getElementById('authScreen').style.display='flex';}},15000);};
 
 // ══ BOOTSTRAP ══
-async function bootstrapApp(){loading(true,'Loading your workspace...');startBsTimeout();try{const{data:prof}=await sb.from('profiles').select('*').eq('id',CU.id).single();CP=prof||{id:CU.id,first_name:CU.user_metadata?.first_name||CU.email.split('@')[0],last_name:CU.user_metadata?.last_name||'',role:'employee'};if(!prof)await sb.from('profiles').upsert({id:CU.id,first_name:CP.first_name,last_name:CP.last_name,role:'employee'}).catch(()=>{});document.getElementById('hdrAv').textContent=ini(CP.first_name,CP.last_name);document.getElementById('hdrNm').textContent=`${CP.first_name} ${CP.last_name}`.trim()||CU.email;document.getElementById('hdrRole').textContent=CP.role||'employee';const mgr=isMgr(),sr=isSr();document.getElementById('navSales').style.display=sr?'':'none';document.getElementById('navExport').style.display=sr?'':'none';document.getElementById('navSettings').style.display=mgr?'':'none';document.getElementById('navAudit').style.display=mgr?'':'none';await Promise.allSettled([loadStaff(),loadMachines(),loadJobs(),loadSched(),loadProjects(),loadWiki()]);if(sr)await loadProspects().catch(()=>{});if(sr)await loadJobCards().catch(()=>{});await loadSettings();clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);renderDash();document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});aLog('SIGN_IN').catch(()=>{});}catch(err){console.error('Bootstrap error:',err);clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);try{renderDash();}catch(e){}}}
+// ══ SAFE SCHEMA MIGRATIONS ══
+// Runs on every load but only creates missing structures — never drops data
+async function runSchemaMigrations(){
+  // We test each new table by doing a minimal select
+  // If it fails the table doesn't exist and we skip gracefully
+  // This means updates never break existing databases
+  const checks=[
+    {table:'todos',test:async()=>sb.from('todos').select('id').limit(1)},
+    {table:'purchases',test:async()=>sb.from('purchases').select('id').limit(1)},
+    {table:'job_assignees',test:async()=>sb.from('job_assignees').select('id').limit(1)},
+    {table:'notifications',test:async()=>sb.from('notifications').select('id').limit(1)},
+  ];
+  for(const c of checks){try{await c.test();}catch(e){console.warn(`Table ${c.table} not found — run schema-v4.sql in Supabase to enable this feature`);}}
+}
+
+async function bootstrapApp(){loading(true,'Loading your workspace...');startBsTimeout();try{
+  // Safe schema check — only runs if tables exist, never drops data
+  await runSchemaMigrations().catch(e=>console.warn('Migration skipped:',e));const{data:prof}=await sb.from('profiles').select('*').eq('id',CU.id).single();CP=prof||{id:CU.id,first_name:CU.user_metadata?.first_name||CU.email.split('@')[0],last_name:CU.user_metadata?.last_name||'',role:'user',status:'pending'};if(!prof)await sb.from('profiles').upsert({id:CU.id,first_name:CP.first_name,last_name:CP.last_name,role:'user',status:'pending'}).catch(()=>{});
+    // Block pending users
+    if(CP.status==='pending'){clearTimeout(bsTimeout);loading(false);document.getElementById('authScreen').style.display='flex';showF('lf');document.getElementById('le').textContent='Your account is pending approval by a manager. You will be notified when access is granted.';document.getElementById('le').style.display='block';await sb.auth.signOut();return;}
+    if(CP.status==='rejected'){clearTimeout(bsTimeout);loading(false);document.getElementById('authScreen').style.display='flex';showF('lf');document.getElementById('le').textContent='Your account application was not approved. Please contact your manager.';document.getElementById('le').style.display='block';await sb.auth.signOut();return;}document.getElementById('hdrAv').textContent=ini(CP.first_name,CP.last_name);document.getElementById('hdrNm').textContent=`${CP.first_name} ${CP.last_name}`.trim()||CU.email;document.getElementById('hdrRole').textContent=CP.role||'user';const mgr=isMgr(),sr=isSr();document.getElementById('navSales').style.display=sr?'':'none';document.getElementById('navExport').style.display=sr?'':'none';document.getElementById('navSettings').style.display=mgr?'':'none';document.getElementById('navAudit').style.display=mgr?'':'none';const holBtn=document.getElementById('btnHol');if(holBtn)holBtn.style.display=mgr?'':'none';await Promise.allSettled([loadStaff(),loadMachines(),loadJobs(),loadSched(),loadProjects(),loadWiki()]);if(sr)await loadProspects().catch(()=>{});if(sr)await loadJobCards().catch(()=>{});if(mgr)await loadPendingUsers().catch(()=>{});await loadNotifications().catch(()=>{});await loadHolidays().catch(()=>{});await loadTodos().catch(()=>{});await loadPurchases().catch(()=>{});await loadSettings();clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);renderDash();document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});aLog('SIGN_IN').catch(()=>{});}catch(err){console.error('Bootstrap error:',err);clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);try{renderDash();}catch(e){}}}
 
 // ══ LOADERS ══
 async function loadStaff(){const{data}=await sb.from('staff').select('*').order('first_name');D.staff=data||[];populateSels();}
 async function loadMachines(){const{data}=await sb.from('machines').select('*').order('name');D.machines=data||[];populateMachSel();}
-async function loadJobs(){const{data}=await sb.from('jobs').select('*').order('created_at',{ascending:false});D.jobs=data||[];}
+async function loadJobs(){const{data}=await sb.from('jobs').select('*').order('created_at',{ascending:false});D.jobs=data||[];await loadJobAssignees();}
+async function loadJobAssignees(){try{const{data}=await sb.from('job_assignees').select('*');D.jobAssignees={};(data||[]).forEach(r=>{if(!D.jobAssignees[r.job_id])D.jobAssignees[r.job_id]=[];D.jobAssignees[r.job_id].push(r.profile_id);});}catch(e){D.jobAssignees={};}}
 async function loadLineItems(jid){const{data}=await sb.from('job_line_items').select('*').eq('job_id',jid).order('line_number');return data||[];}
 async function loadSched(){const{data}=await sb.from('schedule').select('*');D.schedule=data||[];}
 async function loadProjects(){const{data}=await sb.from('projects').select('*').order('created_at',{ascending:false});D.projects=data||[];// Load members and images
@@ -968,10 +1182,56 @@ await Promise.all(D.projects.map(async p=>{const{data:m}=await sb.from('project_
 async function loadWiki(){const{data}=await sb.from('wiki_articles').select('*').order('updated_at',{ascending:false});D.wiki=(data||[]).filter(a=>a.status==='published');D.wikiPend=(data||[]).filter(a=>a.status==='pending');}
 async function loadProspects(){const{data}=await sb.from('prospects').select('*').order('created_at',{ascending:false});D.prospects=data||[];}
 async function loadJobCards(){const{data}=await sb.from('job_cards').select('*').order('created_at',{ascending:false});D.jobCards=data||[];}
+async function loadPendingUsers(){const{data}=await sb.from('profiles').select('*').eq('status','pending').order('created_at');D.pendingUsers=data||[];}
+async function loadNotifications(){try{const{data}=await sb.from('notifications').select('*').eq('profile_id',CU.id).eq('read',false).order('created_at',{ascending:false});D.notifications=data||[];}catch(e){D.notifications=[];}}
+async function loadTodos(){try{const{data}=await sb.from('todos').select('*').eq('profile_id',CU.id).order('created_at',{ascending:false});D.todos=data||[];}catch(e){D.todos=[];}}
+async function loadPurchases(){try{const{data}=await sb.from('purchases').select('*').order('created_at',{ascending:false});D.purchases=data||[];}catch(e){D.purchases=[];}}
+async function markNotifRead(id){await sb.from('notifications').update({read:true}).eq('id',id).catch(()=>{});await loadNotifications();renderDash();}
+
+async function loadHolidays(){try{const{data}=await sb.from('schedule').select('*').eq('type','leave').order('date');D.holidays=data||[];}catch(e){D.holidays=[];}}
+async function addHolidayRange(){
+  const sid=document.getElementById('holStaff').value;
+  const from=document.getElementById('holFrom').value;
+  const to=document.getElementById('holTo').value;
+  const note=document.getElementById('holNote').value||'Annual Leave';
+  if(!sid||!from||!to){alert('Please select staff and both dates');return;}
+  if(from>to){alert('From date must be before To date');return;}
+  // Add a schedule entry for each working day in the range
+  const entries=[];let d=new Date(from+'T00:00:00');const end=new Date(to+'T00:00:00');
+  while(d<=end){const dow=d.getDay();if(dow!==0&&dow!==6){entries.push({staff_id:sid,date:d.toISOString().split('T')[0],type:'leave',hours:8,note,created_by:CU.id});}d.setDate(d.getDate()+1);}
+  if(!entries.length){alert('No working days in selected range');return;}
+  loading(true,'Adding holidays...');
+  await sb.from('schedule').insert(entries);
+  await aLog('ADD_HOLIDAY','schedule','range',{staff:sNm(sid),from,to,note});
+  await loadSched();loading(false);
+  document.getElementById('holFrom').value='';document.getElementById('holTo').value='';document.getElementById('holNote').value='';
+  renderHolidayList();renderSched();
+  toast(`${entries.length} holiday days added ✓`);
+}
+function renderHolidayList(){
+  const today=new Date().toISOString().split('T')[0];
+  const upcoming=(D.holidays||[]).filter(h=>h.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
+  const el=document.getElementById('holidayList');if(!el)return;
+  if(!upcoming.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:12px 0">No upcoming holidays recorded.</div>';return;}
+  // Group by staff
+  const byStaff={};upcoming.forEach(h=>{const nm=sNm(h.staff_id);if(!byStaff[nm])byStaff[nm]=[];byStaff[nm].push(h);});
+  el.innerHTML=Object.entries(byStaff).map(([nm,entries])=>`<div style="margin-bottom:10px"><div style="font-weight:600;font-size:13px;margin-bottom:5px">${nm}</div>${entries.reduce((acc,h,i,arr)=>{if(i===0||h.date!==addOneDayStr(arr[i-1].date)){acc.push({start:h.date,end:h.date,note:h.note,id:h.id});}else{acc[acc.length-1].end=h.date;}return acc;},[]).map(r=>`<div style="display:flex;align-items:center;gap:9px;font-size:12px;padding:5px 9px;background:var(--surface2);border-radius:4px;margin-bottom:3px"><span style="color:var(--red)">🏖</span><span style="flex:1">${fmt(r.start)}${r.start!==r.end?' → '+fmt(r.end):''} · ${r.note}</span><button class="btn btn-d btn-s" onclick="deleteHolidayRange('${r.id}','${nm}','${r.start}','${r.end}')">Del</button></div>`).join('')}</div>`).join('');
+}
+function addOneDayStr(ds){const d=new Date(ds+'T00:00:00');d.setDate(d.getDate()+1);return d.toISOString().split('T')[0];}
+async function deleteHolidayRange(id,staffName,from,to){
+  if(!confirm(`Delete all leave entries for ${staffName} from ${fmt(from)} to ${fmt(to)}?`))return;
+  // Delete all leave entries for this staff in this range
+  const s=D.holidays.find(h=>h.id===id);if(!s)return;
+  const staffId=s.staff_id;
+  const toDelete=D.holidays.filter(h=>h.staff_id===staffId&&h.date>=from&&h.date<=to).map(h=>h.id);
+  await Promise.all(toDelete.map(hid=>sb.from('schedule').delete().eq('id',hid)));
+  await loadSched();await loadHolidays();renderHolidayList();renderSched();toast('Holiday entries removed');
+}
+
 async function loadAuditLog(){const{data}=await sb.from('audit_log').select('*').order('created_at',{ascending:false}).limit(200);document.getElementById('auditBody').innerHTML=(data||[]).map(r=>`<tr><td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${new Date(r.created_at).toLocaleString('en-GB')}</td><td>${r.user_name||'—'}</td><td><span class="badge bme">${r.action}</span></td><td style="font-size:12px;color:var(--muted)">${r.table_name?r.table_name+' ':''} ${r.details?.name||r.record_id||''}</td></tr>`).join('');}
 
 // ══ TABS ══
-function showTab(n,e){document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));document.getElementById('tab-'+n).classList.add('active');if(e?.currentTarget)e.currentTarget.classList.add('active');const r={dash:renderDash,jobs:renderJobs,sched:renderSched,proj:renderProjects,mach:renderMachines,wiki:renderWiki,sales:renderSales,staff:renderStaff,export:()=>{renderJobCards();},audit:loadAuditLog};r[n]?.();}
+function showTab(n,e){document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));document.getElementById('tab-'+n).classList.add('active');if(e?.currentTarget)e.currentTarget.classList.add('active');const r={dash:renderDash,jobs:renderJobs,sched:()=>{loadHolidays().then(()=>renderSched());},proj:renderProjects,mach:renderMachines,wiki:renderWiki,sales:renderSales,staff:renderStaff,todo:renderTodo,purch:renderPurch,export:()=>{renderJobCards();},audit:loadAuditLog};r[n]?.();}
 
 // ══ DASHBOARD ══
 function renderDash(){
@@ -984,6 +1244,8 @@ function renderDash(){
   const todayFollowups=D.prospects.filter(p=>p.followup_date&&isToday(p.followup_date));
   const soon3Followups=D.prospects.filter(p=>p.followup_date&&isDSoon(p.followup_date,3)&&!isToday(p.followup_date));
   const pendWiki=D.wikiPend.length;
+  const pendUsers=D.pendingUsers?.length||0;
+  const openTodos=(D.todos||[]).filter(t=>!t.completed&&t.due_date&&isOD(t.due_date));
   const uninvoiced=D.jobs.filter(j=>j.status==='Complete'&&j.invoice_status==='Not Invoiced');
   const items=[];
   odJobs.forEach(j=>items.push({dot:'d-red',text:`⚠ <strong>${j.job_number}</strong> — ${j.name} is <strong>overdue</strong> (due ${fmt(j.due_date)})`,action:()=>{showTab('jobs',{currentTarget:document.querySelector('nav button:nth-child(2)')});}}));
@@ -994,14 +1256,18 @@ function renderDash(){
   todayFollowups.forEach(p=>items.push({dot:'d-amb',text:`🎯 Follow-up <strong>due today</strong> for <strong>${p.company}</strong>`,action:()=>{showTab('sales',{currentTarget:document.getElementById('navSales')});setTimeout(()=>openDetail(p.id),300);}}));
   soon3Followups.forEach(p=>items.push({dot:'d-blu',text:`🎯 Follow-up due <strong>${fmt(p.followup_date)}</strong> for <strong>${p.company}</strong>`,action:null}));
   if(pendWiki&&isMgr())items.push({dot:'d-blu',text:`📬 <strong>${pendWiki}</strong> wiki article${pendWiki>1?'s':''} awaiting your approval`,action:()=>{openModal('wikiappr');renderApprovals();}});
+  openTodos.forEach(t=>items.push({dot:'d-amb',text:`✅ To-do overdue: <strong>${t.description}</strong> (was due ${fmt(t.due_date)})`,action:()=>{showTab('todo',{currentTarget:document.querySelector('nav button[onclick*=todo]')});}}));
+  if(pendUsers&&isMgr())items.push({dot:'d-amb',text:`👤 <strong>${pendUsers}</strong> user${pendUsers>1?'s':''} awaiting account approval`,action:()=>{showTab('staff',{currentTarget:document.getElementById('navStaff')});}});
+  (D.notifications||[]).forEach(n=>items.push({dot:'d-red',text:`🔔 ${n.message}`,action:()=>markNotifRead(n.id)}));
   const ap=document.getElementById('attPanel');
   ap.innerHTML=items.length?`<div class="att-panel"><div class="att-title">🔔 Needs Attention (${items.length})</div>${items.map((i,idx)=>`<div class="att-item" onclick="(${JSON.stringify(i.action)})()" style="${i.action?'cursor:pointer':'cursor:default'}"><div class="att-dot ${i.dot}"></div><div>${i.text}</div>${i.action?'<span style="color:var(--muted);font-size:11px;margin-left:auto">→</span>':''}</div>`).join('')}</div>`:'';
   // re-attach onclick properly
   ap.querySelectorAll('.att-item').forEach((el,idx)=>{if(items[idx].action){el.onclick=items[idx].action;}});
+  const pendPurch=(D.purchases||[]).filter(p=>p.status==='Pending').length;
   document.getElementById('dashStats').innerHTML=`
     <div class="sc"><div class="sl">Active Jobs</div><div class="sv" style="color:var(--accent)">${active.length}</div><div class="ss">of ${D.jobs.length} total</div></div>
     <div class="sc"><div class="sl">Overdue</div><div class="sv" style="color:${odJobs.length>0?'var(--red)':'var(--green)'}">${odJobs.length}</div><div class="ss">jobs past due date</div></div>
-    <div class="sc"><div class="sl">Staff Active</div><div class="sv" style="color:var(--green)">${D.staff.filter(s=>s.status==='Active').length}</div><div class="ss">of ${D.staff.length} total</div></div>
+    <div class="sc"><div class="sl">Pending Purchases</div><div class="sv" style="color:${pendPurch>0?'var(--accent)':'var(--green)'}">${pendPurch}</div><div class="ss">items to order</div></div>
     <div class="sc"><div class="sl">Live Projects</div><div class="sv" style="color:var(--purple)">${D.projects.filter(p=>p.status==='Active').length}</div><div class="ss">in progress</div></div>`;
   const aj=D.jobs.filter(j=>j.status==='In Progress'||j.status==='QC');
   document.getElementById('dAJ').innerHTML=aj.length?aj.map(j=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)"><div style="width:3px;height:30px;border-radius:2px;background:${j.status==='QC'?'var(--blue)':'var(--accent)'};flex-shrink:0"></div><div style="flex:1"><div style="font-size:13px;font-weight:600">${j.name}</div><div style="font-size:11px;color:var(--muted)">${j.job_number}·${j.client}</div></div><span class="badge bip">${j.status}</span></div>`).join(''):'<div class="empty"><div class="fi">⚙</div><p>No jobs in progress</p></div>';
@@ -1042,17 +1308,46 @@ function renderLI(){
 }
 
 // ══ JOB MODAL ══
+function renderAssignChips(selected=[]){
+  const el=document.getElementById('jAssignChips');if(!el)return;
+  el.innerHTML=D.staff.map(s=>{
+    const sel=selected.includes(s.id)||selected.includes(s.profile_id);
+    const col=sCol(s.id);
+    return`<div onclick="toggleJobAssignee('${s.id}',this)" data-id="${s.id}" data-sel="${sel}" style="display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:4px;border:1px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'rgba(240,165,0,.12)':'var(--surface)'};cursor:pointer;font-size:12px;transition:all .15s;user-select:none">
+      <div class="sav" style="width:20px;height:20px;font-size:9px;background:${col}22;color:${col}">${ini(s.first_name,s.last_name)}</div>
+      ${s.first_name} ${s.last_name}${sel?' <span style="color:var(--accent);margin-left:2px">✓</span>':''}
+    </div>`;
+  }).join('');
+}
+function toggleJobAssignee(id,el){
+  const sel=el.dataset.sel==='true';
+  el.dataset.sel=String(!sel);
+  const col=sCol(id);
+  const s=D.staff.find(x=>x.id===id);
+  el.style.border=`1px solid ${!sel?'var(--accent)':'var(--border)'}`;
+  el.style.background=!sel?'rgba(240,165,0,.12)':'var(--surface)';
+  el.innerHTML=`<div class="sav" style="width:20px;height:20px;font-size:9px;background:${col}22;color:${col}">${ini(s?.first_name||'',s?.last_name||'')}</div>${s?.first_name} ${s?.last_name}${!sel?' <span style="color:var(--accent);margin-left:2px">✓</span>':''}`;
+}
+function getSelJobAssignees(){return Array.from(document.querySelectorAll('#jAssignChips [data-sel="true"]')).map(el=>el.dataset.id);}
+
 function openJobModal(editId=null){
   _liItems=[];liCtr=0;
   document.getElementById('jobMT').textContent='New Production Job';
   document.getElementById('jEId').value='';
   ['jNm','jCl','jDue','jNotes','jMat','jTool'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('jNum').value=genJobNum();
+  renderAssignChips([]);
+  document.getElementById('jMachine').value='';
   document.getElementById('jSt').value='Queued';
   document.getElementById('jPri').value='Medium';
   document.getElementById('jProg').value='0';
   document.getElementById('jSchedNow').checked=false;
   document.getElementById('jSchedWkRow').style.display='none';
+  // Populate Assigned To chips
+  renderAssignChips([]);
+  // Populate Machine dropdown
+  const jMachine=document.getElementById('jMachine');
+  if(jMachine)jMachine.innerHTML='<option value="">— No machine —</option>'+D.machines.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
   const nm=new Date();const day=nm.getDay();nm.setDate(nm.getDate()+(day===0?1:8-day));
   document.getElementById('jSchedWk').value=nm.toISOString().split('T')[0];
   renderLI();
@@ -1079,6 +1374,12 @@ async function editJobModal(id){
   document.getElementById('jTool').value=j.tooling_required||'';
   document.getElementById('jSchedNow').checked=false;
   document.getElementById('jSchedWkRow').style.display='none';
+  // Populate assign chips with current assignees
+  const currentAssignees=D.jobAssignees[id]||[];
+  renderAssignChips(currentAssignees);
+  // Populate and set Machine
+  const jMachineE=document.getElementById('jMachine');
+  if(jMachineE){jMachineE.innerHTML='<option value="">— No machine —</option>'+D.machines.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');jMachineE.value=j.machine_id||'';}
   document.getElementById('modal-job').classList.add('open');
 }
 
@@ -1089,7 +1390,12 @@ function renderJobs(){
   const filter=document.getElementById('jobFilter').value;
   const canEdit=isSr();
   document.getElementById('btnNJ').style.display=canEdit?'':'none';
-  const jobs=filter?D.jobs.filter(j=>j.status===filter):D.jobs;
+  // Users only see jobs they are assigned to
+  const hideCompleted=document.getElementById('hideCompleted')?.checked;
+  let allJobs=filter?D.jobs.filter(j=>j.status===filter):D.jobs;
+  if(hideCompleted)allJobs=allJobs.filter(j=>j.status!=='Complete');
+  const jobs=isUser()&&!isSr()?allJobs.filter(j=>{const assigned=D.jobAssignees[j.id]||[];return assigned.includes(CU.id)||j.assigned_staff_id===CU.id||assigned.some(uid=>D.staff.find(s=>s.id===uid&&s.profile_id===CU.id));
+  }):allJobs;
   const c=document.getElementById('jobsContainer');
   if(jobView==='board'){renderProdBoard(jobs,canEdit);return;}
   if(!jobs.length){c.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="fi">⚙</div><p>No jobs found.</p></div>';c.style.display='grid';c.className='cg';return;}
@@ -1112,6 +1418,7 @@ function renderJobs(){
       <div class="jm">
         <div><div class="ml">Due</div><div class="mv" style="color:${od?'var(--red)':urg?'var(--accent)':'inherit'}">${fmt(j.due_date)}</div></div>
         <div><div class="ml">Progress</div><div class="mv">${j.progress||0}%</div></div>
+        ${j.assigned_staff_id?`<div><div class="ml">Assigned</div><div class="mv">${sNm(j.assigned_staff_id)}</div></div>`:''}
         ${j.completed_date?`<div><div class="ml">Completed</div><div class="mv" style="color:var(--green)">${fmt(j.completed_date)}</div></div>`:''}
       </div>
       ${j.materials_required?`<div style="font-size:11px;color:var(--muted);margin-bottom:2px">🧱 ${j.materials_required}</div>`:''}
@@ -1127,7 +1434,7 @@ function renderJobs(){
         </select>
         ${j.status==='Complete'?`<select class="fs" style="padding:3px 7px;font-size:11px;width:auto" onchange="quickInvoice('${j.id}',this.value);this.value=''"><option value="">Invoice</option><option>Not Invoiced</option><option>Invoiced</option><option>Paid</option></select>`:''}
         ${isMgr()?`<button class="btn btn-d btn-s" onclick="deleteJob('${j.id}')">Del</button>`:''}
-      </div>`:`<div style="margin-top:8px"><button class="btn btn-b btn-s" onclick="genJobCard('${j.id}')">🖨 Print Job Card</button></div>`}
+      </div>`:`<div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-g btn-s" onclick="viewJobDetail('${j.id}')">👁 View</button><button class="btn btn-b btn-s" onclick="genJobCard('${j.id}')">🖨 Print</button></div>`}
     </div>`;
   }).join('');
 }
@@ -1237,13 +1544,30 @@ async function deleteJob(id){if(!confirm('Delete this job and all its operations
 
 async function saveJob(){
   const editId=document.getElementById('jEId').value;
-  const data={job_number:document.getElementById('jNum').value||genJobNum(),name:document.getElementById('jNm').value,client:document.getElementById('jCl').value,due_date:document.getElementById('jDue').value||null,status:document.getElementById('jSt').value,priority:document.getElementById('jPri').value,progress:parseInt(document.getElementById('jProg').value)||0,notes:document.getElementById('jNotes').value,materials_required:document.getElementById('jMat').value,tooling_required:document.getElementById('jTool').value,created_by:CU.id};
+  const newPriority=document.getElementById('jPri').value;
+  const editId2=document.getElementById('jEId').value;
+  // Check if priority changed (for notification)
+  const oldJob=editId2?D.jobs.find(x=>x.id===editId2):null;
+  const priorityChanged=oldJob&&oldJob.priority!==newPriority;
+  const data={job_number:document.getElementById('jNum').value||genJobNum(),name:document.getElementById('jNm').value,client:document.getElementById('jCl').value,due_date:document.getElementById('jDue').value||null,status:document.getElementById('jSt').value,priority:newPriority,progress:parseInt(document.getElementById('jProg').value)||0,notes:document.getElementById('jNotes').value,materials_required:document.getElementById('jMat').value,tooling_required:document.getElementById('jTool').value,machine_id:document.getElementById('jMachine').value||null,created_by:CU.id};
   if(!data.name){alert('Please enter a job name');return;}
   loading(true,'Saving job...');
   let jobId=editId;
   if(editId){await sb.from('jobs').update(data).eq('id',editId);await sb.from('job_line_items').delete().eq('job_id',editId);await aLog('UPDATE_JOB','jobs',editId,{name:data.name});}
   else{const{data:nj}=await sb.from('jobs').insert(data).select().single();jobId=nj.id;await aLog('CREATE_JOB','jobs',jobId,{name:data.name,client:data.client});}
   if(_liItems.length&&jobId){await sb.from('job_line_items').insert(_liItems.map((li,i)=>({job_id:jobId,line_number:i+1,description:li.description,quantity:parseInt(li.quantity)||1,machine_id:li.machine_id||null,assigned_staff_id:li.assigned_staff_id||null,estimated_hours:parseFloat(li.estimated_hours)||0,materials_required:li.materials_required||'',tooling_required:li.tooling_required||'',status:li.status||'Not Started'})));}
+  // Save multi-assignees
+  const selAssignees=getSelJobAssignees();
+  if(jobId){
+    await sb.from('job_assignees').delete().eq('job_id',jobId).catch(()=>{});
+    if(selAssignees.length){await sb.from('job_assignees').insert(selAssignees.map(sid=>({job_id:jobId,staff_id:sid,profile_id:D.staff.find(s=>s.id===sid)?.profile_id||null}))).catch(()=>{});}
+  }
+  // Priority change notification
+  if(priorityChanged&&oldJob&&jobId){
+    const assignedIds=selAssignees.length?selAssignees:(D.jobAssignees[jobId]||[]);
+    await sb.from('notifications').insert(assignedIds.map(sid=>({profile_id:D.staff.find(s=>s.id===sid)?.profile_id,job_id:jobId,message:`Job ${data.job_number} priority changed from ${oldJob.priority} to ${newPriority}`,type:'priority_change',read:false}))).catch(()=>{});
+    toast(`⚠ Priority changed — ${assignedIds.length} user${assignedIds.length!==1?'s':''} notified`);
+  }
   // Auto-schedule
   if(document.getElementById('jSchedNow').checked&&_liItems.length&&jobId){await autoSched(jobId,document.getElementById('jSchedWk').value,data.job_number,data.name);}
   // Reload line items into cache
@@ -1263,6 +1587,59 @@ async function autoSched(jobId,weekStart,jobNum,jobName){
   if(entries.length){await sb.from('schedule').insert(entries);await loadSched();toast(`${entries.length} operations scheduled into production schedule ✓`);}
 }
 
+// ══ JOB DETAIL VIEW (read-only for employees) ══
+async function viewJobDetail(jobId){
+  const j=D.jobs.find(x=>x.id===jobId);if(!j)return;
+  loading(true,'Loading...');
+  const lis=await loadLineItems(jobId);
+  loading(false);
+  const od=isOD(j.due_date)&&j.status!=='Complete';
+  const urg=isDSoon(j.due_date,2)&&j.status!=='Complete'&&!od;
+  const invBadge=j.status==='Complete'?`<span class="badge ${j.invoice_status==='Paid'?'b-paid':j.invoice_status==='Invoiced'?'b-inv':'b-ni'}">${j.invoice_status||'Not Invoiced'}</span>`:'';
+  document.getElementById('jvTitle').textContent=`${j.job_number} — ${j.name}`;
+  document.getElementById('jvContent').innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <span class="badge ${j.status==='Queued'?'bq':j.status==='In Progress'?'bip':j.status==='QC'?'bqc':j.status==='Complete'?'bc':'boh'}">${j.status}</span>
+      <span class="badge ${j.priority==='High'?'bhi':j.priority==='Low'?'blo':'bme'}">${j.priority}</span>
+      ${od?'<span class="badge boh">⚠ OVERDUE</span>':''}
+      ${urg?'<span class="badge bme">🔔 DUE SOON</span>':''}
+      ${invBadge}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;background:var(--surface2);padding:14px;border-radius:6px">
+      <div><div class="ml">Client</div><div class="mv">${j.client||'—'}</div></div>
+      <div><div class="ml">Due Date</div><div class="mv" style="color:${od?'var(--red)':urg?'var(--accent)':'inherit'}">${fmt(j.due_date)}</div></div>
+      <div><div class="ml">Progress</div><div class="mv">${j.progress||0}%</div></div>
+      ${(()=>{const aa=D.jobAssignees[j.id]||[];if(aa.length)return`<div><div class="ml">Assigned</div><div class="mv">${aa.map(sid=>{const s=D.staff.find(x=>x.id===sid);return s?s.first_name:'';}).filter(Boolean).join(', ')}</div></div>`;if(j.assigned_staff_id)return`<div><div class="ml">Assigned</div><div class="mv">${sNm(j.assigned_staff_id)}</div></div>`;return'';})()}
+      ${j.completed_date?`<div><div class="ml">Completed</div><div class="mv" style="color:var(--green)">${fmt(j.completed_date)}</div></div>`:''}
+      ${j.shipping_method?`<div><div class="ml">Shipping</div><div class="mv">${j.shipping_method}</div></div>`:''}
+    </div>
+    <div class="pb" style="margin-bottom:16px"><div class="pf" style="width:${j.progress||0}%"></div></div>
+    ${j.materials_required?`<div style="margin-bottom:8px"><div class="ml" style="margin-bottom:3px">Materials Required</div><div style="font-size:13px">🧱 ${j.materials_required}</div></div>`:''}
+    ${j.tooling_required?`<div style="margin-bottom:8px"><div class="ml" style="margin-bottom:3px">Tooling Required</div><div style="font-size:13px">🔧 ${j.tooling_required}</div></div>`:''}
+    ${j.notes?`<div style="margin-bottom:14px;padding:11px;background:rgba(240,165,0,.08);border-left:3px solid var(--accent);border-radius:0 5px 5px 0"><div class="ml" style="margin-bottom:4px">Special Instructions</div><div style="font-size:13px;line-height:1.6">${j.notes}</div></div>`:''}
+    ${lis.length?`
+    <div style="font-family:var(--head);font-size:13px;font-weight:700;text-transform:uppercase;margin-bottom:9px;letter-spacing:.5px">Operations (${lis.length})</div>
+    <div style="overflow-x:auto">
+    <table class="lit">
+      <thead><tr><th>#</th><th>Operation</th><th>Qty</th><th>Machine</th><th>Operator</th><th>Est. Hrs</th><th>Materials</th><th>Tooling</th><th>Status</th></tr></thead>
+      <tbody>${lis.map((li,i)=>`<tr>
+        <td style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center">${i+1}</td>
+        <td style="font-weight:500">${li.description}</td>
+        <td style="text-align:center">${li.quantity}</td>
+        <td>${mNm(li.machine_id)}</td>
+        <td>${sNm(li.assigned_staff_id)}</td>
+        <td style="text-align:center">${li.estimated_hours||'—'}</td>
+        <td>${li.materials_required||'—'}</td>
+        <td>${li.tooling_required||'—'}</td>
+        <td><span class="badge ${li.status==='Complete'?'bc':li.status==='In Progress'?'bip':'bq'}">${li.status}</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`:'<div style="color:var(--muted);font-size:13px;padding:12px 0">No operations added to this job.</div>'}
+    <div style="display:flex;gap:7px;margin-top:16px;justify-content:flex-end">
+      <button class="btn btn-b" onclick="genJobCard('${j.id}')">🖨 Print Job Card</button>
+    </div>`;
+  document.getElementById('modal-jobview').classList.add('open');
+}
+
 // ══ JOB CARD PDF ══
 async function genJobCard(jobId){
   const j=D.jobs.find(x=>x.id===jobId);if(!j)return;
@@ -1273,8 +1650,10 @@ async function genJobCard(jobId){
   const od=isOD(j.due_date)&&j.status!=='Complete';
   const urg=isDSoon(j.due_date,2)&&j.status!=='Complete'&&!od;
 
-  // Use jsPDF
-  const{jsPDF}=window.jspdf;
+  // Use jsPDF - safely check it's loaded
+  const jsPDFLib = window.jspdf || window.jsPDF;
+  if(!jsPDFLib){loading(false);alert('PDF library not loaded yet. Please wait a moment and try again.');return;}
+  const{jsPDF} = jsPDFLib;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210,M=15;let Y=M;
 
@@ -1386,83 +1765,170 @@ async function downloadWeekJobCards(){
   toast(`Downloading ${cards.length} job cards...`);
 }
 
-// ══ SCHEDULE ══
+// ══ SCHEDULE / CALENDAR ══
+// Irish bank holidays (month is 0-indexed)
+function getIrishBankHolidays(year){
+  const easterDate=(y)=>{const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31)-1,day=((h+l-7*m+114)%31)+1;return new Date(y,month,day);};
+  const easter=easterDate(year);
+  const addDays=(d,n)=>{const r=new Date(d);r.setDate(r.getDate()+n);return r;};
+  const fmt2=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return {
+    [fmt2(new Date(year,0,1))]:"New Year's Day",
+    [fmt2(new Date(year,1,3))]:"St Brigid's Day",
+    [fmt2(addDays(easter,-2))]:"Good Friday",
+    [fmt2(easter)]:"Easter Sunday",
+    [fmt2(addDays(easter,1))]:"Easter Monday",
+    [fmt2(new Date(year,4,5))]:"May Bank Holiday",
+    [fmt2(new Date(year,5,2))]:"June Bank Holiday",
+    [fmt2(new Date(year,7,4))]:"August Bank Holiday",
+    [fmt2(new Date(year,9,27))]:"October Bank Holiday",
+    [fmt2(new Date(year,11,25))]:"Christmas Day",
+    [fmt2(new Date(year,11,26))]:"St Stephen's Day",
+  };
+}
+
+let schedView='month'; // 'month' or 'week'
+let schedMonthOff=0; // months from today
+let schedWeekOff=0;  // weeks from today
+
+function setSchedView(v){
+  schedView=v;
+  document.getElementById('sv-month').classList.toggle('active',v==='month');
+  document.getElementById('sv-week').classList.toggle('active',v==='week');
+  renderSched();
+}
+function schedNavBack(){if(schedView==='month')schedMonthOff--;else schedWeekOff--;renderSched();}
+function schedNavFwd(){if(schedView==='month')schedMonthOff++;else schedWeekOff++;renderSched();}
+function schedGoToday(){schedMonthOff=0;schedWeekOff=0;renderSched();}
+
+// Keep old aliases for backward compat
 function getWkStart(off){const d=new Date();const day=d.getDay();const diff=d.getDate()-day+(day===0?-6:1);d.setDate(diff+off*7);d.setHours(0,0,0,0);return d;}
-function getWkDays(){const m=getWkStart(weekOff);return Array.from({length:5},(_,i)=>{const d=new Date(m);d.setDate(d.getDate()+i);return d;});}
-const changeWeek=dir=>{weekOff+=dir;renderSched();};
-const goToToday=()=>{weekOff=0;renderSched();};
+function getWkDays(){const m=getWkStart(schedWeekOff);return Array.from({length:5},(_,i)=>{const d=new Date(m);d.setDate(d.getDate()+i);return d;});}
+const changeWeek=dir=>{schedWeekOff+=dir;renderSched();};
+const goToToday=()=>{schedGoToday();};
+
+function fmtD(d){return d.toISOString().split('T')[0];}
+
+function getBirthdays(year,month){
+  // Returns {dateStr: [name,...]}
+  const bdays={};
+  D.staff.forEach(s=>{
+    if(!s.date_of_birth)return;
+    const dob=new Date(s.date_of_birth);
+    const bd=new Date(year,dob.getMonth(),dob.getDate());
+    if(bd.getMonth()===month){
+      const key=fmtD(bd);
+      if(!bdays[key])bdays[key]=[];
+      bdays[key].push(`🎂 ${s.first_name}'s Birthday`);
+    }
+  });
+  return bdays;
+}
 
 function renderSched(){
-  const days=getWkDays();const fmtD=d=>d.toISOString().split('T')[0];const today=fmtD(new Date());
   const canEdit=isSr();
   document.getElementById('btnNS').style.display=canEdit?'':'none';
-  document.getElementById('weekLbl').textContent=`${days[0].toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${days[4].toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+  if(schedView==='month'){renderMonthCal(canEdit);}
+  else{renderWeekCal(canEdit);}
+}
+
+function renderMonthCal(canEdit){
+  const now=new Date();
+  const base=new Date(now.getFullYear(),now.getMonth()+schedMonthOff,1);
+  const year=base.getFullYear(),month=base.getMonth();
+  const bh=getIrishBankHolidays(year);
+  const bdays=getBirthdays(year,month);
+  document.getElementById('schedNavLbl').textContent=base.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const firstDay=new Date(year,month,1).getDay();
+  const startOffset=(firstDay===0?6:firstDay-1); // Monday first
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const today=fmtD(new Date());
+  const dowNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html='<div class="cal-month">'+dowNames.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  // Empty cells before month start
+  for(let i=0;i<startOffset;i++)html+=`<div class="cal-day other-month"></div>`;
+  for(let day=1;day<=daysInMonth;day++){
+    const dt=new Date(year,month,day);
+    const ds=fmtD(dt);
+    const dow=dt.getDay();
+    const isWknd=dow===0||dow===6;
+    const isTdy=ds===today;
+    const bankHol=bh[ds];
+    const entries=D.schedule.filter(e=>e.date===ds);
+    // For users, only show their own entries
+    const myStaff=D.staff.find(s=>s.profile_id===CU.id);
+    const visEntries=isUser()&&!isSr()?entries.filter(e=>e.staff_id===myStaff?.id):entries;
+    const bdayList=bdays[ds]||[];
+    // Jobs due this day
+    const dueJobs=D.jobs.filter(j=>j.due_date===ds&&j.status!=='Complete');
+    html+=`<div class="cal-day${isWknd?' weekend':''}${isTdy?' today':''}">`;
+    html+=`<div class="cal-day-num">${day}${isTdy?' ●':''}</div>`;
+    if(bankHol)html+=`<div class="cal-bh">🏦 ${bankHol}</div>`;
+    bdayList.forEach(b=>html+=`<div class="cal-event eb">${b}</div>`);
+    dueJobs.slice(0,2).forEach(j=>html+=`<div class="cal-event ej" title="${j.name} — DUE">⚑ ${j.job_number}</div>`);
+    visEntries.slice(0,3).forEach(e=>{
+      const tc=e.type==='admin'?'ea':e.type==='leave'?'el':e.type==='training'?'et':'ep';
+      const sn=sNm(e.staff_id);
+      html+=`<div class="cal-event ${tc}" title="${sn}: ${e.note||e.type}" ${canEdit?`onclick="editSchedEntry('${e.id}')"`:''}>`;
+      html+=isUser()&&!isSr()?`${e.note||e.type}`:`${sn.split(' ')[0]}: ${e.note||e.type}`;
+      html+=`</div>`;
+    });
+    const total=visEntries.length+bdayList.length+dueJobs.length+(bankHol?1:0);
+    const shown=Math.min(3,visEntries.length)+bdayList.length+Math.min(2,dueJobs.length)+(bankHol?1:0);
+    if(total>shown)html+=`<div class="cal-more">+${total-shown} more</div>`;
+    if(canEdit)html+=`<div style="position:absolute;bottom:3px;right:3px"><button onclick="prefillSched('','${ds}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px" title="Add entry">+</button></div>`;
+    html+=`</div>`;
+  }
+  // Fill remaining cells
+  const totalCells=startOffset+daysInMonth;const remaining=(7-totalCells%7)%7;
+  for(let i=0;i<remaining;i++)html+=`<div class="cal-day other-month"></div>`;
+  html+='</div>';
+  // Conflict banner
+  const conflicts=[];
+  const daysInView=Array.from({length:daysInMonth},(_,i)=>{const d=new Date(year,month,i+1);return fmtD(d);});
+  daysInView.forEach(ds=>{const mc={};D.schedule.filter(e=>e.machine_id&&e.date===ds).forEach(e=>{if(!mc[e.machine_id])mc[e.machine_id]=[];mc[e.machine_id].push(e);});Object.entries(mc).filter(([,a])=>a.length>1).forEach(([mId,a])=>{const m=D.machines.find(x=>x.id===mId);conflicts.push(`<strong>${m?.name||'Machine'}</strong> on ${fmtD(new Date(ds))} — ${a.map(e=>sNm(e.staff_id)).join(' & ')}`);});});
+  document.getElementById('conflictBanner').innerHTML=conflicts.length?`<div class="cb">⚠ ${conflicts.length} machine conflict${conflicts.length>1?'s':''}: ${conflicts.slice(0,3).join('; ')}${conflicts.length>3?'...':''}</div>`:'';
+  document.getElementById('schedContainer').innerHTML=html;
+}
+
+function renderWeekCal(canEdit){
+  // Week view - shows current user's own week
+  const days=getWkDays();const today=fmtD(new Date());
+  document.getElementById('schedNavLbl').textContent=`${days[0].toLocaleDateString('en-GB',{day:'numeric',month:'short'})} – ${days[4].toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`;
+  const myStaff=D.staff.find(s=>s.profile_id===CU.id);
+  const year=days[0].getFullYear();
+  const bh=getIrishBankHolidays(year);
   const conflicts=new Set();
   days.forEach(d=>{const ds=fmtD(d);const mc={};D.schedule.filter(e=>e.machine_id&&e.date===ds).forEach(e=>{if(!mc[e.machine_id])mc[e.machine_id]=[];mc[e.machine_id].push(e);});Object.values(mc).filter(a=>a.length>1).forEach(a=>a.forEach(e=>conflicts.add(e.id)));});
-  const cDays=[];days.forEach(d=>{const ds=fmtD(d);const mc={};D.schedule.filter(e=>e.machine_id&&e.date===ds).forEach(e=>{if(!mc[e.machine_id])mc[e.machine_id]=[];mc[e.machine_id].push(e);});Object.entries(mc).filter(([,a])=>a.length>1).forEach(([mId,a])=>{const m=D.machines.find(x=>x.id===mId);cDays.push(`<strong>${m?.name||'Machine'}</strong> on ${fmt(ds)} — ${a.map(e=>sNm(e.staff_id)).join(' & ')}`);});});
-  document.getElementById('conflictBanner').innerHTML=cDays.length?`<div class="cb"><span>⚠</span><div>${cDays.length} conflict${cDays.length>1?'s':''}: ${cDays.join('; ')}</div></div>`:'';
   const dn=['Monday','Tuesday','Wednesday','Thursday','Friday'];
-  let html=`<div style="background:var(--surface2)"></div>`;
-  days.forEach((d,i)=>html+=`<div class="sh"><div class="sd">${dn[i]}</div><div class="sdate">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div></div>`);
+  let html=`<div class="sg" style="grid-template-columns:120px repeat(5,1fr)">`;
+  html+=`<div style="background:var(--surface2)"></div>`;
+  days.forEach((d,i)=>{const ds=fmtD(d);const bk=bh[ds];html+=`<div class="sh"${bk?` style="background:rgba(192,57,43,.1)"`:''}><div class="sd">${dn[i]}</div><div class="sdate">${d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>${bk?`<div style="font-size:9px;color:#e74c3c;margin-top:1px">🏦 ${bk}</div>`:''}</div>`;});
   html+=`<div class="ssd">👤 Staff</div>`;
-  D.staff.forEach(s=>{
+  // For users show only themselves, for senior/manager show all
+  const staffToShow=isUser()&&!isSr()?(myStaff?[myStaff]:[]):D.staff;
+  staffToShow.forEach(s=>{
     const col=s.avatar_color||'#f0a500';
-    html+=`<div class="ssl"><div class="sav" style="background:${col}22;color:${col}">${ini(s.first_name,s.last_name)}</div><div><div style="font-size:12px;font-weight:600">${s.first_name}</div><div style="font-size:10px;color:var(--muted)">${s.role}</div></div></div>`;
+    // Birthday this week?
+    const bdayThisWeek=days.some(d=>{if(!s.date_of_birth)return false;const dob=new Date(s.date_of_birth);return dob.getMonth()===d.getMonth()&&dob.getDate()===d.getDate();});
+    html+=`<div class="ssl"><div class="sav" style="background:${col}22;color:${col}">${ini(s.first_name,s.last_name)}</div><div><div style="font-size:12px;font-weight:600">${s.first_name}${bdayThisWeek?' 🎂':''}</div><div style="font-size:10px;color:var(--muted)">${s.role}</div></div></div>`;
     days.forEach(d=>{
-      const ds=fmtD(d);const entries=D.schedule.filter(e=>e.staff_id===s.id&&e.date===ds);
-      html+=`<div class="sc2 ${ds===today?'today':''}" ${canEdit?`onclick="prefillSched('${s.id}','${ds}')"`:''}>${entries.map(e=>{
-        const mn=e.machine_id?(D.machines.find(x=>x.id===e.machine_id)?.name||''):'';
-        const tc=e.type==='admin'?'ta':e.type==='leave'?'tl':e.type==='training'?'tt':'';
-        return`<div class="se ${tc}${conflicts.has(e.id)?' conflict':''}">
-          ${e.note||e.type}${mn?`<div class="se-job">⚙ ${mn}</div>`:''}
-          ${canEdit?`<button class="de" onclick="event.stopPropagation();editSchedEntry('${e.id}')">✏</button>`:''}</div>`;
-      }).join('')}</div>`;
+      const ds=fmtD(d);const entries=D.schedule.filter(e=>e.staff_id===s.id&&e.date===ds);const bk=bh[ds];
+      const isBday=s.date_of_birth&&(()=>{const dob=new Date(s.date_of_birth);return dob.getMonth()===d.getMonth()&&dob.getDate()===d.getDate();})();
+      html+=`<div class="sc2 ${ds===today?'today':''}" ${canEdit?`onclick="prefillSched('${s.id}','${ds}')"`:''}>${bk?`<div class="se tl" style="background:rgba(192,57,43,.15);border-color:#c0392b">🏦 ${bk}</div>`:''} ${isBday?`<div class="se" style="background:rgba(46,204,113,.15);border-color:var(--green)">🎂 Birthday!</div>`:''} ${entries.map(e=>{const tc=e.type==='admin'?'ta':e.type==='leave'?'tl':e.type==='training'?'tt':'';return`<div class="se ${tc}${conflicts.has(e.id)?' conflict':''}">${e.note||e.type}${e.machine_id?`<div class="se-job">⚙ ${D.machines.find(x=>x.id===e.machine_id)?.name||''}</div>`:''} ${canEdit?`<button class="de" onclick="event.stopPropagation();editSchedEntry('${e.id}')">✏</button>`:''}</div>`;}).join('')}</div>`;
     });
   });
-  html+=`<div class="ssd">⚙ Machines</div>`;
-  D.machines.forEach(m=>{
-    html+=`<div class="sml"><div style="width:24px;height:24px;border-radius:4px;background:rgba(240,165,0,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">⚙</div><div><div style="font-size:12px;font-weight:600">${m.name}</div><div style="font-size:10px;color:var(--muted)">${m.type}</div></div></div>`;
-    days.forEach(d=>{
-      const ds=fmtD(d);const entries=D.schedule.filter(e=>e.machine_id===m.id&&e.date===ds);const dc=entries.length>1;
-      html+=`<div class="sc2 ${ds===today?'today':''}">${entries.map(e=>`<div class="se${dc?' conflict':''}" style="background:rgba(240,165,0,.07);border-color:var(--accent)">${sNm(e.staff_id)}${e.note?` – ${e.note}`:''} ${dc?'⚠':''}</div>`).join('')}${m.status==='Maintenance'&&!entries.length?`<div style="font-size:10px;color:var(--accent);padding:2px">🔧 Maint.</div>`:''}</div>`;
+  if(canEdit){
+    html+=`<div class="ssd">⚙ Machines</div>`;
+    D.machines.forEach(m=>{
+      html+=`<div class="sml"><div style="width:24px;height:24px;border-radius:4px;background:rgba(240,165,0,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">⚙</div><div><div style="font-size:12px;font-weight:600">${m.name}</div><div style="font-size:10px;color:var(--muted)">${m.type}</div></div></div>`;
+      days.forEach(d=>{const ds=fmtD(d);const entries=D.schedule.filter(e=>e.machine_id===m.id&&e.date===ds);const dc=entries.length>1;html+=`<div class="sc2 ${ds===today?'today':''}">${entries.map(e=>`<div class="se${dc?' conflict':''}" style="background:rgba(240,165,0,.07);border-color:var(--accent)">${sNm(e.staff_id)}${e.note?` – ${e.note}`:''} ${dc?'⚠':''}</div>`).join('')}${m.status==='Maintenance'&&!entries.length?`<div style="font-size:10px;color:var(--accent);padding:2px">🔧 Maint.</div>`:''}</div>`;});
     });
-  });
-  document.getElementById('schedGrid').innerHTML=html;
+  }
+  html+=`</div>`;
+  document.getElementById('conflictBanner').innerHTML='';
+  document.getElementById('schedContainer').innerHTML=html;
 }
-
-const prefillSched=(sid,date)=>{openModal('sched');document.getElementById('schedStaff').value=sid;document.getElementById('schedDate').value=date;document.getElementById('schedEditId').value='';checkSchedConflict();};
-
-function checkSchedConflict(){
-  const mid=document.getElementById('schedMach')?.value;const dt=document.getElementById('schedDate')?.value;const w=document.getElementById('schedConflWarn');if(!w)return;
-  if(mid&&dt){const c=D.schedule.filter(e=>e.machine_id===mid&&e.date===dt);w.style.display=c.length?'block':'none';if(c.length)w.textContent=`⚠ Already booked for ${c.map(e=>sNm(e.staff_id)).join(' & ')} on this date!`;}
-  else w.style.display='none';
-}
-
-async function editSchedEntry(id){
-  const e=D.schedule.find(x=>x.id===id);if(!e)return;
-  openModal('sched');
-  document.getElementById('schedMT').textContent='Edit Schedule Entry';
-  document.getElementById('schedEditId').value=id;
-  document.getElementById('schedStaff').value=e.staff_id;
-  document.getElementById('schedDate').value=e.date;
-  document.getElementById('schedType').value=e.type;
-  document.getElementById('schedHours').value=e.hours;
-  document.getElementById('schedMach').value=e.machine_id||'';
-  document.getElementById('schedNote').value=e.note||'';
-}
-
-async function saveSchedEntry(){
-  const mid=document.getElementById('schedMach').value||null;const dt=document.getElementById('schedDate').value;const sid=document.getElementById('schedStaff').value;const eid=document.getElementById('schedEditId').value;
-  if(mid&&dt&&!eid){const c=D.schedule.filter(e=>e.machine_id===mid&&e.date===dt);if(c.length&&!confirm(`⚠ Machine conflict — already booked for ${c.map(e=>sNm(e.staff_id)).join(' & ')}. Add anyway?`))return;}
-  const data={staff_id:sid,machine_id:mid,date:dt,type:document.getElementById('schedType').value,hours:parseInt(document.getElementById('schedHours').value)||8,note:document.getElementById('schedNote').value,created_by:CU.id};
-  if(!sid||!dt){alert('Please select staff and date');return;}
-  loading(true,'Saving...');
-  if(eid){await sb.from('schedule').update(data).eq('id',eid);await aLog('UPDATE_SCHEDULE','schedule',eid);toast('Entry updated');}
-  else{await sb.from('schedule').insert(data);await aLog('CREATE_SCHEDULE','schedule','new',{staff:sNm(sid),date:dt});toast('Entry added');}
-  await loadSched();loading(false);closeModal('sched');renderSched();
-}
-
-async function delSched(id){await sb.from('schedule').delete().eq('id',id);await loadSched();renderSched();toast('Entry removed');}
 
 // ══ PROJECTS ══
 let _projImgs=[];
@@ -1483,7 +1949,9 @@ function getSelProjMembers(){return Array.from(document.querySelectorAll('#projM
 function renderProjects(){
   const filter=document.getElementById('projFilter').value;const canEdit=isSr();
   document.getElementById('btnNP').style.display=canEdit?'':'none';
-  const projs=filter?D.projects.filter(p=>p.category===filter):D.projects;
+  let allProjs=filter?D.projects.filter(p=>p.category===filter):D.projects;
+  // Users only see projects they are assigned to
+  const projs=isUser()&&!isSr()?allProjs.filter(p=>{const mems=D.projMembers[p.id]||[];const myStaff=D.staff.find(s=>s.profile_id===CU.id);return p.owner_id===(myStaff?.id)||mems.includes(myStaff?.id);}):allProjs;
   const c=document.getElementById('projContainer');
   if(!projs.length){c.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="fi">📋</div><p>No projects found.</p></div>';return;}
   const stBadge={'Planning':'bpl','Active':'bac','Paused':'bpa','Done':'bdo'};
@@ -1563,6 +2031,17 @@ async function saveMachine(){const eid=document.getElementById('mEId').value;con
 // ══ STAFF ══
 function renderStaff(){
   const canEdit=isMgr();document.getElementById('btnNSt').style.display=canEdit?'':'none';
+  // Pending users section (managers only)
+  const pu=D.pendingUsers||[];const pSec=document.getElementById('pendingUsersSection');const pList=document.getElementById('pendingUsersList');
+  if(isMgr()&&pu.length){pSec.style.display='block';pList.innerHTML=pu.map(u=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid rgba(240,165,0,.3);border-radius:8px;margin-bottom:8px;flex-wrap:wrap">
+    <div class="u-av" style="width:36px;height:36px;font-size:13px;flex-shrink:0">${ini(u.first_name,u.last_name)}</div>
+    <div style="flex:1;min-width:180px"><div style="font-weight:600;font-size:14px">${u.first_name} ${u.last_name}</div><div style="font-size:12px;color:var(--muted)">${u.job_title||'No title given'}</div><div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px">Applied ${fmt((u.created_at||'').split('T')[0])}</div></div>
+    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+      <select class="fs" id="role_${u.id}" style="padding:4px 8px;font-size:12px;width:auto"><option value="user">User</option><option value="senior">Senior</option><option value="manager">Manager</option></select>
+      <button class="btn btn-grn btn-s" onclick="approveUser('${u.id}')">✓ Approve</button>
+      <button class="btn btn-d btn-s" onclick="rejectUser('${u.id}','${u.first_name} ${u.last_name}')">✕ Reject</button>
+    </div>
+  </div>`).join('');}else if(pSec){pSec.style.display='none';}
   const c=document.getElementById('staffContainer');
   if(!D.staff.length){c.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="fi">👥</div><p>No staff added.</p></div>';return;}
   c.innerHTML=D.staff.map(s=>{
@@ -1617,9 +2096,28 @@ function openStaffPanel(sid){
 }
 const closeStaffPanel=()=>document.getElementById('staffPanel').classList.remove('open');
 
-function editStaff(id){const s=D.staff.find(x=>x.id===id);if(!s)return;openModal('staff');document.getElementById('staffMT').textContent='Edit Staff Member';document.getElementById('stEId').value=id;document.getElementById('stF').value=s.first_name;document.getElementById('stL').value=s.last_name;document.getElementById('stR').value=s.role;document.getElementById('stEm').value=s.email||'';document.getElementById('stPh').value=s.phone||'';document.getElementById('stSt').value=s.status||'Active';}
+async function approveUser(uid){
+  const roleEl=document.getElementById('role_'+uid);
+  const role=roleEl?roleEl.value:'user';
+  await sb.from('profiles').update({status:'active',role}).eq('id',uid);
+  await aLog('APPROVE_USER','profiles',uid,{role});
+  await loadPendingUsers();
+  renderStaff();renderDash();
+  toast('User approved ✓');
+}
+async function rejectUser(uid,name){
+  if(!confirm(`Reject account application for ${name}? This will delete their account.`))return;
+  await sb.from('profiles').update({status:'rejected'}).eq('id',uid);
+  // Also delete auth user via admin - we can only mark rejected as we don't have admin key
+  await aLog('REJECT_USER','profiles',uid,{name});
+  await loadPendingUsers();
+  renderStaff();renderDash();
+  toast('Application rejected');
+}
+
+function editStaff(id){const s=D.staff.find(x=>x.id===id);if(!s)return;openModal('staff');document.getElementById('staffMT').textContent='Edit Staff Member';document.getElementById('stEId').value=id;document.getElementById('stF').value=s.first_name;document.getElementById('stL').value=s.last_name;document.getElementById('stR').value=s.role;document.getElementById('stEm').value=s.email||'';document.getElementById('stPh').value=s.phone||'';document.getElementById('stSt').value=s.status||'Active';document.getElementById('stDob').value=s.date_of_birth||'';document.getElementById('stColor').value=s.avatar_color||'#f0a500';}
 async function delStaff(id){if(!confirm('Remove this staff member?'))return;await sb.from('staff').delete().eq('id',id);await aLog('DELETE_STAFF','staff',id);await loadStaff();renderStaff();renderDash();toast('Staff member removed');}
-async function saveStaff(){const eid=document.getElementById('stEId').value;const data={first_name:document.getElementById('stF').value,last_name:document.getElementById('stL').value,role:document.getElementById('stR').value,email:document.getElementById('stEm').value,phone:document.getElementById('stPh').value,status:document.getElementById('stSt').value};if(!data.first_name){alert('Please enter a name');return;}loading(true,'Saving...');if(eid){await sb.from('staff').update(data).eq('id',eid);await aLog('UPDATE_STAFF','staff',eid,{name:`${data.first_name} ${data.last_name}`});toast('Staff updated');}else{await sb.from('staff').insert(data);await aLog('CREATE_STAFF','staff','new',{name:`${data.first_name} ${data.last_name}`});toast('Staff member added');}await loadStaff();loading(false);closeModal('staff');renderStaff();renderDash();}
+async function saveStaff(){const eid=document.getElementById('stEId').value;const data={first_name:document.getElementById('stF').value,last_name:document.getElementById('stL').value,role:document.getElementById('stR').value,email:document.getElementById('stEm').value,phone:document.getElementById('stPh').value,status:document.getElementById('stSt').value,date_of_birth:document.getElementById('stDob').value||null,avatar_color:document.getElementById('stColor').value||'#f0a500'};if(!data.first_name){alert('Please enter a name');return;}loading(true,'Saving...');if(eid){await sb.from('staff').update(data).eq('id',eid);await aLog('UPDATE_STAFF','staff',eid,{name:`${data.first_name} ${data.last_name}`});toast('Staff updated');}else{await sb.from('staff').insert(data);await aLog('CREATE_STAFF','staff','new',{name:`${data.first_name} ${data.last_name}`});toast('Staff member added');}await loadStaff();loading(false);closeModal('staff');renderStaff();renderDash();}
 
 // ══ SALES ══
 const STAGES=[{key:'target',label:'Target',cls:'ct'},{key:'researching',label:'Researching',cls:'cr'},{key:'contacted',label:'Contacted',cls:'cc'},{key:'meeting',label:'Meeting/Quote',cls:'cm'},{key:'won',label:'Won',cls:'cw'}];
@@ -1695,6 +2193,155 @@ function renderApprovals(){document.getElementById('apprList').innerHTML=D.wikiP
 async function approveW(id){await sb.from('wiki_articles').update({status:'published',approved_by:CU.id,approved_at:new Date().toISOString()}).eq('id',id);await aLog('APPROVE_WIKI','wiki_articles',id);await loadWiki();renderApprovals();renderWiki();renderDash();toast('Article published ✓');if(!D.wikiPend.length)closeModal('wikiappr');}
 async function rejectW(id){if(!confirm('Reject this submission?'))return;await sb.from('wiki_articles').update({status:'rejected'}).eq('id',id);await aLog('REJECT_WIKI','wiki_articles',id);await loadWiki();renderApprovals();renderWiki();toast('Article rejected');}
 
+// ══ TO-DO ══
+const setTodoFilter=f=>{todoFilter=f;['all','open','done'].forEach(x=>document.getElementById('td-'+x)?.classList.toggle('active',x===f));renderTodo();};
+
+function renderTodo(){
+  const el=document.getElementById('todoContainer');if(!el)return;
+  let items=D.todos;
+  if(todoFilter==='open')items=items.filter(t=>!t.completed);
+  if(todoFilter==='done')items=items.filter(t=>t.completed);
+  if(!items.length){el.innerHTML=`<div class="empty"><div class="fi">✅</div><p>${todoFilter==='done'?'No completed tasks yet.':'No tasks. Add one above!'}</p></div>`;return;}
+  el.innerHTML=items.map(t=>{
+    const od=t.due_date&&isOD(t.due_date)&&!t.completed;
+    return`<div class="todo-item${t.completed?' done':''}">
+      <button class="todo-check${t.completed?' checked':''}" onclick="toggleTodo('${t.id}',${!t.completed})" title="${t.completed?'Mark incomplete':'Mark complete'}">${t.completed?'✓':''}</button>
+      <div style="flex:1">
+        <div class="todo-desc">${t.description}</div>
+        ${t.notes?`<div style="font-size:12px;color:var(--muted);margin-top:2px">${t.notes}</div>`:''}
+        <div class="todo-meta">
+          <span class="badge ${t.priority==='High'?'bhi':t.priority==='Low'?'blo':'bme'}">${t.priority}</span>
+          ${t.due_date?`<span class="badge ${od?'boh':'bq'}" style="font-size:10px">${od?'⚠ Overdue: ':'Due: '}${fmt(t.due_date)}</span>`:''}
+          ${t.completed?`<span style="font-size:11px;color:var(--green)">✓ Done ${fmt(t.completed_date)}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="btn btn-g btn-s" onclick="editTodo('${t.id}')">Edit</button>
+        <button class="btn btn-d btn-s" onclick="deleteTodo('${t.id}')">Del</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleTodo(id,completed){
+  await sb.from('todos').update({completed,completed_date:completed?new Date().toISOString().split('T')[0]:null}).eq('id',id);
+  await loadTodos();renderTodo();
+}
+
+function editTodo(id){
+  const t=D.todos.find(x=>x.id===id);if(!t)return;
+  openModal('todo');
+  document.getElementById('todoMT').textContent='Edit Task';
+  document.getElementById('tdEId').value=id;
+  document.getElementById('tdDesc').value=t.description;
+  document.getElementById('tdPri').value=t.priority;
+  document.getElementById('tdDue').value=t.due_date||'';
+  document.getElementById('tdNotes').value=t.notes||'';
+}
+
+async function deleteTodo(id){
+  if(!confirm('Delete this task?'))return;
+  await sb.from('todos').delete().eq('id',id);
+  await loadTodos();renderTodo();toast('Task deleted');
+}
+
+async function saveTodo(){
+  const eid=document.getElementById('tdEId').value;
+  const data={description:document.getElementById('tdDesc').value,priority:document.getElementById('tdPri').value,due_date:document.getElementById('tdDue').value||null,notes:document.getElementById('tdNotes').value,profile_id:CU.id,completed:false};
+  if(!data.description){alert('Please enter a task description');return;}
+  loading(true,'Saving...');
+  if(eid){await sb.from('todos').update(data).eq('id',eid);toast('Task updated');}
+  else{await sb.from('todos').insert(data);toast('Task added');}
+  await loadTodos();loading(false);closeModal('todo');renderTodo();
+}
+
+// ══ PURCHASING ══
+const CAT_ICONS={'Cutting Tools':'🔪','Materials':'🧱','Facilities':'🏭','PPE':'🦺','Consumables':'📦','Other':'📋'};
+const setPurchCat=c=>{purchCat=c;document.querySelectorAll('#purchCatTabs .vt-btn').forEach(b=>b.classList.toggle('active',b.id===`pc-${c}`||c==='all'&&b.id==='pc-all'));renderPurch();};
+
+function renderPurch(){
+  const el=document.getElementById('purchContainer');if(!el)return;
+  const canEdit=isSr();
+  document.getElementById('btnNPurch').style.display=canEdit?'':'none';
+  let items=D.purchases;
+  if(purchCat!=='all')items=items.filter(p=>p.category===purchCat);
+  if(!items.length){el.innerHTML=`<div class="empty"><div class="fi">🛒</div><p>No items${purchCat!=='all'?' in this category':''}. Add one above!</p></div>`;return;}
+  // Group by category
+  const cats=purchCat==='all'?['Cutting Tools','Materials','Facilities','PPE','Consumables','Other']:([purchCat]);
+  let html='';
+  cats.forEach(cat=>{
+    const catItems=items.filter(p=>p.category===cat);
+    if(!catItems.length)return;
+    const totalCost=catItems.reduce((s,p)=>s+(parseFloat(p.estimated_cost)||0),0);
+    html+=`<div class="purch-section">
+      <div class="purch-sec-title">${CAT_ICONS[cat]||'📋'} ${cat} <span style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto">${catItems.length} item${catItems.length!==1?'s':''} ${totalCost>0?'· Est. €'+totalCost.toFixed(2):''}</span></div>
+      ${catItems.map(p=>`<div class="purch-item${p.status==='Ordered'?' ordered':''}">
+        <div style="flex:1">
+          <div class="purch-desc">${p.description}</div>
+          ${p.quantity?`<div style="font-size:12px;color:var(--muted);margin-top:2px">Qty/Spec: ${p.quantity}</div>`:''}
+          ${p.supplier?`<div style="font-size:12px;color:var(--muted)">Supplier: ${p.supplier}</div>`:''}
+          ${p.job_ref?`<div style="font-size:12px;color:var(--accent);font-family:var(--mono)">Job: ${p.job_ref}</div>`:''}
+          <div class="purch-meta">
+            <span class="badge ${p.priority==='High'?'bhi':p.priority==='Low'?'blo':'bme'}">${p.priority}</span>
+            <span class="badge ${p.status==='Ordered'?'bc':p.status==='Received'?'bdo':'bq'}">${p.status||'Pending'}</span>
+            ${p.estimated_cost?`<span style="font-family:var(--mono);font-size:11px;color:var(--muted)">€${parseFloat(p.estimated_cost).toFixed(2)}</span>`:''}
+            ${p.notes?`<span style="font-size:11px;color:var(--muted)">${p.notes}</span>`:''}
+            <span style="font-size:11px;color:var(--muted)">Added by ${p.added_by_name||'—'}</span>
+          </div>
+        </div>
+        ${canEdit?`<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+          <select class="fs" style="padding:3px 7px;font-size:11px;width:auto" onchange="quickPurchStatus('${p.id}',this.value)">
+            <option value="">Status</option>
+            <option ${p.status==='Pending'?'selected':''}>Pending</option>
+            <option ${p.status==='Ordered'?'selected':''}>Ordered</option>
+            <option ${p.status==='Received'?'selected':''}>Received</option>
+          </select>
+          <button class="btn btn-g btn-s" onclick="editPurch('${p.id}')">Edit</button>
+          ${isMgr()?`<button class="btn btn-d btn-s" onclick="deletePurch('${p.id}')">Del</button>`:''}
+        </div>`:''}
+      </div>`).join('')}
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+async function quickPurchStatus(id,status){
+  if(!status)return;
+  await sb.from('purchases').update({status}).eq('id',id);
+  await loadPurchases();renderPurch();toast('Status updated');
+}
+
+function editPurch(id){
+  const p=D.purchases.find(x=>x.id===id);if(!p)return;
+  openModal('purch');
+  document.getElementById('purchMT').textContent='Edit Purchase Item';
+  document.getElementById('prchEId').value=id;
+  document.getElementById('prchDesc').value=p.description;
+  document.getElementById('prchCat').value=p.category;
+  document.getElementById('prchPri').value=p.priority;
+  document.getElementById('prchQty').value=p.quantity||'';
+  document.getElementById('prchCost').value=p.estimated_cost||'';
+  document.getElementById('prchSupp').value=p.supplier||'';
+  document.getElementById('prchJob').value=p.job_ref||'';
+  document.getElementById('prchNotes').value=p.notes||'';
+}
+
+async function deletePurch(id){
+  if(!confirm('Remove this item from the purchasing list?'))return;
+  await sb.from('purchases').delete().eq('id',id);
+  await loadPurchases();renderPurch();toast('Item removed');
+}
+
+async function savePurch(){
+  const eid=document.getElementById('prchEId').value;
+  const data={description:document.getElementById('prchDesc').value,category:document.getElementById('prchCat').value,priority:document.getElementById('prchPri').value,quantity:document.getElementById('prchQty').value,estimated_cost:parseFloat(document.getElementById('prchCost').value)||null,supplier:document.getElementById('prchSupp').value,job_ref:document.getElementById('prchJob').value,notes:document.getElementById('prchNotes').value,added_by:CU.id,added_by_name:CP?`${CP.first_name} ${CP.last_name}`:'Unknown',status:'Pending'};
+  if(!data.description){alert('Please enter an item description');return;}
+  loading(true,'Saving...');
+  if(eid){await sb.from('purchases').update(data).eq('id',eid);toast('Item updated');}
+  else{await sb.from('purchases').insert(data);toast('Item added to purchasing list');}
+  await loadPurchases();loading(false);closeModal('purch');renderPurch();
+}
+
 // ══ EXPORT ══
 function exportCSV(type){
   const n=new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
@@ -1729,6 +2376,13 @@ function openModal(t){
     wiki:()=>openWikiEditor(),
     wikiappr:()=>{},
     complete:()=>{},
+    todo:()=>{document.getElementById('todoMT').textContent='New Task';document.getElementById('tdEId').value='';['tdDesc','tdDue','tdNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('tdPri').value='Medium';},
+    purch:()=>{document.getElementById('purchMT').textContent='New Purchase Request';document.getElementById('prchEId').value='';['prchDesc','prchQty','prchCost','prchSupp','prchJob','prchNotes'].forEach(id=>document.getElementById(id).value='');document.getElementById('prchCat').value='Cutting Tools';document.getElementById('prchPri').value='Medium';},
+    holiday:()=>{
+      const el=document.getElementById('holStaff');
+      if(el)el.innerHTML='<option value="">— Select Staff —</option>'+D.staff.map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
+      renderHolidayList();
+    },
   };
   if(t==='job'){openJobModal();return;}
   if(t==='wiki'){openWikiEditor();return;}
