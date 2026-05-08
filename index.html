@@ -399,7 +399,7 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
 </head>
 <body>
 
-<div class="load-ov" id="loadOv"><div class="spin"></div><div class="load-txt" id="loadTxt">Loading PrecisionOps...</div></div>
+<div class="load-ov" id="loadOv" style="display:none"><div class="spin"></div><div class="load-txt" id="loadTxt">Loading PrecisionOps...</div></div>
 
 <!-- AUTH -->
 <div id="authScreen">
@@ -1144,7 +1144,7 @@ async function sendReset(){const em=document.getElementById('fgtem').value.trim(
 async function setNewPw(){const pw=document.getElementById('rppw').value,pw2=document.getElementById('rppw2').value,el=document.getElementById('rpe'),ok=document.getElementById('rpo');el.style.display='none';ok.style.display='none';if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Updating password...');if(window._rt)await sb.auth.setSession({access_token:window._rt,refresh_token:window._rr||''});const{error}=await sb.auth.updateUser({password:pw});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}ok.textContent='Password updated! Signing you in...';ok.style.display='block';window._rt=null;window._rr=null;setTimeout(async()=>{const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else showF('lf');},2000);}
 async function signOut(){await aLog('SIGN_OUT');await sb.auth.signOut();}
 sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT'){CU=null;CP=null;document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';loading(false);}else if(e==='TOKEN_REFRESHED'&&s){CU=s.user;}});
-document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&document.getElementById('loadOv').style.display!=='none'){const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else{loading(false);document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';}}});
+document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&document.getElementById('loadOv').style.display==='flex'){const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else{loading(false);document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';}}});
 const startBsTimeout=()=>{clearTimeout(bsTimeout);bsTimeout=setTimeout(()=>{if(document.getElementById('loadOv').style.display!=='none'){loading(false);if(document.getElementById('appShell').style.display==='none')document.getElementById('authScreen').style.display='flex';}},15000);};
 
 // ══ BOOTSTRAP ══
@@ -2397,7 +2397,7 @@ document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.
 // ══ INIT ══
 const _h=window.location.hash;const _p=new URLSearchParams(_h.replace('#',''));const _ir=_p.get('type')==='recovery'&&_p.get('access_token');
 if(_ir){document.getElementById('loadOv').style.display='none';document.getElementById('authScreen').style.display='flex';showF('rp');window._rt=_p.get('access_token');window._rr=_p.get('refresh_token')||'';window.history.replaceState(null,'',window.location.pathname);}
-(async()=>{if(_ir)return;loading(true,'Loading...');startBsTimeout();const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else loading(false);})();
+(async()=>{if(_ir)return;const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else{loading(false);document.getElementById('authScreen').style.display='flex';}})();
 </script>
 </body>
 </html>
