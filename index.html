@@ -1153,7 +1153,35 @@ window.addEventListener('online',()=>{
 });
 const fmt=s=>{if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});};
 const isOD=s=>s&&new Date(s+'T00:00:00')<new Date(new Date().toDateString());
-// Image compression - reduces base64 size before DB storage
+// ── SUPABASE STORAGE HELPERS ──────────────────────────────
+const STORAGE_URL=`${SB_URL}/storage/v1/object/public`;
+
+async function uploadToStorage(bucket, file, path){
+  // Upload a File object to Supabase Storage, return public URL
+  const ext=file.name.split('.').pop().toLowerCase();
+  const safePath=path||`${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const{data,error}=await sb.storage.from(bucket).upload(safePath,file,{upsert:true,contentType:file.type});
+  if(error)throw error;
+  return`${STORAGE_URL}/${bucket}/${data.path}`;
+}
+
+async function uploadDataUrlToStorage(bucket, dataUrl, filename){
+  // Convert a base64 dataURL to a File and upload to Storage
+  const res=await fetch(dataUrl);
+  const blob=await res.blob();
+  const file=new File([blob],filename,{type:blob.type});
+  return uploadToStorage(bucket,file,filename);
+}
+
+async function deleteFromStorage(bucket, url){
+  // Delete a file from Storage given its public URL
+  try{
+    const path=url.replace(`${STORAGE_URL}/${bucket}/`,'');
+    await sb.storage.from(bucket).remove([path]);
+  }catch(e){console.warn('Storage delete failed:',e);}
+}
+
+// Image compression - reduces file size before upload
 function compressImage(dataUrl, maxWidth=800, quality=0.75){
   return new Promise(resolve=>{
     const img=new Image();
@@ -1205,7 +1233,9 @@ async function loadSettings(){
     const{data:shared}=await sb.from('user_preferences').select('company_name,company_logo,job_prefix').not('company_name','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
     if(shared){
       if(shared.company_name&&shared.company_name!=='PrecisionOps')settings.company_name=shared.company_name;
-      if(shared.company_logo)settings.company_logo=shared.company_logo;
+      // Prefer storage URL over base64 if available
+      if(shared.company_logo_url)settings.company_logo=shared.company_logo_url;
+      else if(shared.company_logo)settings.company_logo=shared.company_logo;
       if(shared.job_prefix)settings.job_prefix=shared.job_prefix;
     }
     applyBranding();
@@ -1222,8 +1252,46 @@ function applyBranding(){
   const jp=document.getElementById('setJP');if(jp)jp.value=settings.job_prefix||'JOB';
   const lp=document.getElementById('curLogoPrev');if(lp)lp.innerHTML=settings.company_logo?`<img src="${settings.company_logo}" style="height:36px;object-fit:contain;border:1px solid var(--border);border-radius:4px;padding:3px">`:'';
 }
-function uploadLogo(e){const f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024){alert('Logo must be under 5MB');return;}const r=new FileReader();r.onload=async ev=>{const compressed=await compressImage(ev.target.result,400,0.9);settings.company_logo=compressed;applyBranding();toast('Logo uploaded — save settings to apply');};r.readAsDataURL(f);}
-async function saveSettings(){const nm=(document.getElementById('setCN').value.trim()||'PrecisionOps');const jp=(document.getElementById('setJP').value.trim().toUpperCase()||'JOB');settings.company_name=nm;settings.job_prefix=jp;await sb.from('user_preferences').upsert({id:CU.id,company_name:nm,company_logo:settings.company_logo||'',theme:settings.theme,job_prefix:jp});applyBranding();toast('Settings saved');}
+async function uploadLogo(e){
+  const f=e.target.files[0];if(!f)return;
+  if(f.size>5*1024*1024){alert('Logo must be under 5MB');return;}
+  loading(true,'Uploading logo...');
+  try{
+    // Compress first then upload to Storage
+    const r=new FileReader();
+    r.onload=async ev=>{
+      const compressed=await compressImage(ev.target.result,400,0.9);
+      const url=await uploadDataUrlToStorage('company-assets',compressed,`logo-${CU.id}.jpg`);
+      settings.company_logo=url;
+      settings.company_logo_url=url;
+      loading(false);
+      applyBranding();
+      toast('Logo uploaded ✓');
+    };
+    r.readAsDataURL(f);
+  }catch(err){
+    loading(false);
+    // Fallback to base64 if Storage fails
+    const r=new FileReader();
+    r.onload=async ev=>{const compressed=await compressImage(ev.target.result,400,0.9);settings.company_logo=compressed;applyBranding();toast('Logo uploaded (local fallback)');};
+    r.readAsDataURL(f);
+    console.warn('Storage upload failed, using base64 fallback:',err);
+  }
+}
+async function saveSettings(){
+  const nm=(document.getElementById('setCN').value.trim()||'PrecisionOps');
+  const jp=(document.getElementById('setJP').value.trim().toUpperCase()||'JOB');
+  settings.company_name=nm;settings.job_prefix=jp;
+  await sb.from('user_preferences').upsert({
+    id:CU.id,
+    company_name:nm,
+    company_logo:settings.company_logo||'',
+    company_logo_url:settings.company_logo_url||settings.company_logo||'',
+    theme:settings.theme,
+    job_prefix:jp
+  });
+  applyBranding();toast('Settings saved');
+}
 
 // ══ AUTH ══
 function showF(id){['lf','fgt','su','rp'].forEach(x=>document.getElementById(x).style.display=x===id?'block':'none');}
@@ -2010,9 +2078,28 @@ async function genJobCard(jobId){
   loading(false);
   const pdfData=doc.output('datauristring');
   const fileName=`${j.job_number}-${j.client.replace(/[^a-zA-Z0-9]/g,'-')}-${j.name.replace(/[^a-zA-Z0-9]/g,'-').substring(0,20)}.pdf`;
-  // Save to Supabase
+  // Save PDF to Supabase Storage instead of base64 in DB
   const[yr,wk]=getWeekNum(new Date());
-  await sb.from('job_cards').upsert({job_id:j.id,job_number:j.job_number,client:j.client,pdf_data:pdfData,week_number:wk,week_year:yr,created_by:CU.id},{onConflict:'job_id'}).catch(()=>{});
+  try{
+    // Convert PDF to blob and upload to Storage
+    const pdfBlob=doc.output('blob');
+    const storageFile=new File([pdfBlob],fileName,{type:'application/pdf'});
+    const pdfStorageUrl=await uploadToStorage('job-cards',storageFile,`${yr}/Week-${wk}/${fileName}`);
+    await sb.from('job_cards').upsert({
+      job_id:j.id,
+      job_number:j.job_number,
+      client:j.client,
+      pdf_data:'', // no longer storing base64
+      pdf_url:pdfStorageUrl,
+      week_number:wk,
+      week_year:yr,
+      created_by:CU.id
+    },{onConflict:'job_id'}).catch(()=>{});
+  }catch(storageErr){
+    // Fallback: save base64 if Storage fails
+    console.warn('Storage upload failed, saving base64:',storageErr);
+    await sb.from('job_cards').upsert({job_id:j.id,job_number:j.job_number,client:j.client,pdf_data:pdfData,week_number:wk,week_year:yr,created_by:CU.id},{onConflict:'job_id'}).catch(()=>{});
+  }
   await loadJobCards();
   // Download
   doc.save(fileName);
@@ -2037,7 +2124,15 @@ function renderJobCards(){
   </div>`).join('')}</div>`;
 }
 
-function downloadSavedCard(id){const c=D.jobCards.find(x=>x.id===id);if(!c||!c.pdf_data)return;const a=document.createElement('a');a.href=c.pdf_data;a.download=`${c.job_number}-${c.client}.pdf`;a.click();toast('Downloading...');}
+function downloadSavedCard(id){
+  const c=D.jobCards.find(x=>x.id===id);if(!c)return;
+  // Prefer storage URL, fall back to base64
+  if(c.pdf_url){
+    const a=document.createElement('a');a.href=c.pdf_url;a.download=`${c.job_number}-${c.client}.pdf`;a.target='_blank';a.click();toast('Downloading...');
+  }else if(c.pdf_data){
+    const a=document.createElement('a');a.href=c.pdf_data;a.download=`${c.job_number}-${c.client}.pdf`;a.click();toast('Downloading...');
+  }else{toast('No PDF available for this job card');}
+}
 
 async function downloadWeekJobCards(){
   const filter=document.getElementById('jcWeekFilter')?.value;
@@ -2218,7 +2313,25 @@ function renderWeekCal(canEdit){
 
 // ══ PROJECTS ══
 let _projImgs=[];
-function addProjImages(e){Array.from(e.target.files).forEach(f=>{if(f.size>10*1024*1024){alert(`${f.name} is over 10MB`);return;}const r=new FileReader();r.onload=async ev=>{const compressed=await compressImage(ev.target.result);_projImgs.push({name:f.name,data_url:compressed});renderProjImgPrev();};r.readAsDataURL(f);});e.target.value='';}
+function addProjImages(e){
+  Array.from(e.target.files).forEach(async f=>{
+    if(f.size>20*1024*1024){alert(`${f.name} is over 20MB`);return;}
+    loading(true,'Uploading image...');
+    try{
+      const url=await uploadToStorage('project-images',f,`${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`);
+      _projImgs.push({name:f.name,data_url:url,storage_url:url});
+      loading(false);renderProjImgPrev();toast(`${f.name} uploaded ✓`);
+    }catch(err){
+      // Fallback to base64
+      loading(false);
+      const r=new FileReader();
+      r.onload=async ev=>{const compressed=await compressImage(ev.target.result);_projImgs.push({name:f.name,data_url:compressed});renderProjImgPrev();};
+      r.readAsDataURL(f);
+      console.warn('Storage upload failed, using base64:',err);
+    }
+  });
+  e.target.value='';
+}
 function renderProjImgPrev(){document.getElementById('projImgPrev').innerHTML=_projImgs.map((img,i)=>`<div style="position:relative"><img src="${img.data_url}" style="height:52px;width:68px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"><button onclick="_projImgs.splice(${i},1);renderProjImgPrev()" style="position:absolute;top:-4px;right:-4px;background:var(--red);border:none;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;cursor:pointer;line-height:14px;text-align:center">✕</button></div>`).join('');}
 
 function renderProjMembersSel(selected=[]){
@@ -2473,7 +2586,25 @@ function editWArt(id){const art=D.wiki.find(a=>a.id===id);if(!art)return;openMod
 async function delWArt(id){if(!confirm('Delete this article?'))return;await sb.from('wiki_articles').delete().eq('id',id);await aLog('DELETE_WIKI','wiki_articles',id);wikiArt=null;await loadWiki();renderWiki();toast('Article deleted');}
 const openWikiEditor=()=>{document.getElementById('wikiMT').textContent='New Article';document.getElementById('wEId').value='';['wTitle','wTags','wContent'].forEach(id=>document.getElementById(id).value='');_wImgs=[];renderWIP();document.getElementById('modal-wiki').classList.add('open');};
 function wFmt(t){const ta=document.getElementById('wContent');const s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.substring(s,e);const bef=ta.value.substring(0,s),aft=ta.value.substring(e);const ins={bold:`**${sel||'bold text'}**`,italic:`*${sel||'italic'}*`,h2:`\n## ${sel||'Heading'}\n`,h3:`\n### ${sel||'Sub-heading'}\n`,ul:`\n- ${sel||'Item'}\n`,ol:`\n1. ${sel||'Item'}\n`,warn:`\n[WARN] ${sel||'Warning'}\n`,tip:`\n[TIP] ${sel||'Tip'}\n`,step:`\n[STEP] ${sel||'Step'}\n`}[t];ta.value=bef+ins+aft;ta.focus();ta.selectionStart=ta.selectionEnd=s+ins.length;}
-function wikiInsertImg(e){const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){alert('Image must be under 10MB');return;}const r=new FileReader();r.onload=async ev=>{const compressed=await compressImage(ev.target.result,1200,0.8);_wImgs.push({name:f.name,dataUrl:compressed});const ta=document.getElementById('wContent');const p=ta.selectionStart;const ph=`\n[IMAGE:${f.name}]\n`;ta.value=ta.value.substring(0,p)+ph+ta.value.substring(p);renderWIP();toast('Image added');};r.readAsDataURL(f);e.target.value='';}
+async function wikiInsertImg(e){
+  const f=e.target.files[0];if(!f)return;
+  if(f.size>20*1024*1024){alert('Image must be under 20MB');return;}
+  loading(true,'Uploading image...');
+  try{
+    const url=await uploadToStorage('wiki-images',f,`${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`);
+    _wImgs.push({name:f.name,dataUrl:url,storageUrl:url});
+    const ta=document.getElementById('wContent');const p=ta.selectionStart;
+    const ph=`\n[IMAGE:${f.name}]\n`;ta.value=ta.value.substring(0,p)+ph+ta.value.substring(p);
+    loading(false);renderWIP();toast('Image uploaded ✓');
+  }catch(err){
+    loading(false);
+    const r=new FileReader();
+    r.onload=async ev=>{const compressed=await compressImage(ev.target.result,1200,0.8);_wImgs.push({name:f.name,dataUrl:compressed});const ta=document.getElementById('wContent');const p2=ta.selectionStart;const ph2=`\n[IMAGE:${f.name}]\n`;ta.value=ta.value.substring(0,p2)+ph2+ta.value.substring(p2);renderWIP();toast('Image added (local fallback)');};
+    r.readAsDataURL(f);
+    console.warn('Storage upload failed:',err);
+  }
+  e.target.value='';
+}
 function renderWIP(){document.getElementById('wImgPrev').innerHTML=_wImgs.map((img,i)=>`<div style="position:relative"><img src="${img.dataUrl}" style="height:48px;width:64px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"><button onclick="_wImgs.splice(${i},1);renderWIP()" style="position:absolute;top:-4px;right:-4px;background:var(--red);border:none;color:#fff;border-radius:50%;width:13px;height:13px;font-size:9px;cursor:pointer;line-height:13px;text-align:center">✕</button></div>`).join('');}
 async function submitWiki(){const eid=document.getElementById('wEId').value;const title=document.getElementById('wTitle').value.trim();if(!title){alert('Please enter a title');return;}const data={title,category:document.getElementById('wCat').value,tags:document.getElementById('wTags').value.split(',').map(t=>t.trim()).filter(Boolean),content:document.getElementById('wContent').value,images:_wImgs,author_name:CP?`${CP.first_name} ${CP.last_name}`:'Unknown',submitted_by:CU.id};loading(true,'Saving...');if(eid){await sb.from('wiki_articles').update({...data,updated_at:new Date().toISOString()}).eq('id',eid);await aLog('UPDATE_WIKI','wiki_articles',eid,{title});toast('Article updated');}else{await sb.from('wiki_articles').insert({...data,status:'pending'});await aLog('SUBMIT_WIKI','wiki_articles','new',{title});toast('Submitted for approval ✓');}await loadWiki();loading(false);closeModal('wiki');renderWiki();}
 function renderApprovals(){document.getElementById('apprList').innerHTML=D.wikiPend.length?D.wikiPend.map(a=>`<div class="appr"><div style="font-family:var(--head);font-size:14px;font-weight:700;margin-bottom:2px">${a.title}</div><div style="font-size:12px;color:var(--muted);margin-bottom:7px">${WICK[a.category]} ${a.category} · ✍ ${a.author_name} · 📅 ${fmt((a.created_at||'').split('T')[0])}</div><div style="display:flex;gap:6px"><button class="btn btn-p btn-s" onclick="approveW('${a.id}')">✓ Approve</button><button class="btn btn-d btn-s" onclick="rejectW('${a.id}')">✕ Reject</button></div></div>`).join(''):'<div style="text-align:center;padding:22px;color:var(--muted)">No articles pending.</div>';}
