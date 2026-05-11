@@ -1127,6 +1127,7 @@ let CU=null,CP=null;
 let D={staff:[],machines:[],jobs:[],lineItems:{},schedule:[],projects:[],projMembers:{},projImages:{},wiki:[],wikiPend:[],prospects:[],jobCards:[],jobAssignees:{},pendingUsers:[],todos:[],purchases:[],notifications:[]};
 let weekOff=0,wikiCat='All',wikiArt=null,wikiImgs=[],lineItems=[],liCtr=0,jobView='cards',projImgsNew=[];
 let _jobAssignees=[]; // multi-assign for current job modal
+let _inMfaFlow=false; // prevents bootstrapApp firing during MFA setup
 let todoFilter='all', purchCat='all';
 let _schedRenderTimer=null;
 const renderSchedDebounced=()=>{clearTimeout(_schedRenderTimer);_schedRenderTimer=setTimeout(renderSched,80);};
@@ -1246,8 +1247,10 @@ async function signIn(){
   try{
     const{data:aalData}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
     if(aalData?.nextLevel==='aal2'&&aalData?.currentLevel!=='aal2'){
+      _inMfaFlow=true;
       loading(false);
       document.getElementById('authScreen').style.display='flex';
+      document.getElementById('appShell').style.display='none';
       showF('mfaVerify');
       document.getElementById('mfaCode').focus();
       return;
@@ -1260,8 +1263,8 @@ async function signUp(){const f=document.getElementById('suf').value.trim(),l=do
 async function sendReset(){const em=document.getElementById('fgtem').value.trim(),el=document.getElementById('fgte'),ok=document.getElementById('fgto');el.style.display='none';ok.style.display='none';if(!em){el.textContent='Please enter your email.';el.style.display='block';return;}const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:'https://efj-engineering.github.io/precisionops/'});if(error){el.textContent=error.message;el.style.display='block';}else{ok.textContent='Reset link sent. Check your inbox and spam folder.';ok.style.display='block';}}
 async function setNewPw(){const pw=document.getElementById('rppw').value,pw2=document.getElementById('rppw2').value,el=document.getElementById('rpe'),ok=document.getElementById('rpo');el.style.display='none';ok.style.display='none';if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Updating password...');if(window._rt)await sb.auth.setSession({access_token:window._rt,refresh_token:window._rr||''});const{error}=await sb.auth.updateUser({password:pw});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}ok.textContent='Password updated! Signing you in...';ok.style.display='block';window._rt=null;window._rr=null;setTimeout(async()=>{const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else showF('lf');},2000);}
 async function signOut(){await aLog('SIGN_OUT');await sb.auth.signOut();}
-sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT'){CU=null;CP=null;document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';loading(false);}else if(e==='TOKEN_REFRESHED'&&s){CU=s.user;}});
-document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&document.getElementById('loadOv').style.display==='flex'){const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else{loading(false);document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';}}});
+sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT'){_inMfaFlow=false;CU=null;CP=null;document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';loading(false);}else if(e==='TOKEN_REFRESHED'&&s){CU=s.user;}});
+document.addEventListener('visibilitychange',async()=>{if(!_inMfaFlow&&document.visibilityState==='visible'&&document.getElementById('loadOv').style.display==='flex'){const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else{loading(false);document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';}}});
 const startBsTimeout=()=>{clearTimeout(bsTimeout);bsTimeout=setTimeout(()=>{if(document.getElementById('loadOv').style.display!=='none'){loading(false);if(document.getElementById('appShell').style.display==='none')document.getElementById('authScreen').style.display='flex';}},15000);};
 
 // ══ BOOTSTRAP ══
@@ -1284,6 +1287,7 @@ async function verifyMfa(){
     if(cErr){loading(false);el.textContent=cErr.message;el.style.display='block';return;}
     const{data,error}=await sb.auth.mfa.verify({factorId:totpFactor.id,challengeId:challenge.id,code});
     if(error){loading(false);el.textContent='Invalid code. Please try again.';el.style.display='block';if(window.turnstile)window.turnstile.reset();return;}
+    _inMfaFlow=false;
     CU=data.user;
     await bootstrapApp();
   }catch(e){loading(false);el.textContent='Verification failed. Please try again.';el.style.display='block';console.error(e);}
@@ -1305,7 +1309,9 @@ async function initMfaSetup(){
     document.getElementById('mfaQrCode').innerHTML=`<img src="${data.totp.qr_code}" style="width:180px;height:180px;border-radius:8px;border:3px solid var(--accent)">`;
     document.getElementById('mfaSecret').textContent=`Manual entry: ${data.totp.secret}`;
     loading(false);
+    _inMfaFlow=true;
     document.getElementById('authScreen').style.display='flex';
+    document.getElementById('appShell').style.display='none';
     showF('mfaSetup');
   }catch(e){console.warn('MFA setup error:',e);await bootstrapApp();}
 }
@@ -1322,6 +1328,7 @@ async function confirmMfaSetup(){
     if(cErr){loading(false);el.textContent=cErr.message;el.style.display='block';return;}
     const{error}=await sb.auth.mfa.verify({factorId:_mfaFactorId,challengeId:challenge.id,code});
     if(error){loading(false);el.textContent='Invalid code — please check your authenticator app and try again.';el.style.display='block';return;}
+    _inMfaFlow=false;
     loading(false);
     toast('✓ Two-factor authentication enabled successfully');
     await bootstrapApp();
@@ -1329,7 +1336,7 @@ async function confirmMfaSetup(){
 }
 
 async function skipMfaSetup(){
-  // Unenroll the factor if they skip
+  _inMfaFlow=false;
   if(_mfaFactorId){await sb.auth.mfa.unenroll({factorId:_mfaFactorId}).catch(()=>{});}
   _mfaFactorId=null;
   await bootstrapApp();
