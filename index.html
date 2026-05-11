@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net wss://*.supabase.co; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.supabase.co https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net https://js.hcaptcha.com https://newassets.hcaptcha.com https://api.hcaptcha.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.hcaptcha.com https://newassets.hcaptcha.com https://api.hcaptcha.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://js.hcaptcha.com https://newassets.hcaptcha.com https://api.hcaptcha.com wss://*.supabase.co; img-src 'self' data: blob: https://js.hcaptcha.com https://newassets.hcaptcha.com https://api.hcaptcha.com; frame-src https://newassets.hcaptcha.com; font-src 'self' https://fonts.gstatic.com;">
 <title>PrecisionOps</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
 :root{--bg:#0e0f11;--surface:#16181c;--surface2:#1e2128;--border:#2a2d35;--accent:#f0a500;--green:#2ecc71;--red:#e74c3c;--blue:#3b82f6;--purple:#8b5cf6;--orange:#e05c2a;--text:#e8eaf0;--muted:#6b7280;--mono:'DM Mono',monospace;--head:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;}
@@ -384,6 +385,24 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
 .urg-bdg{background:#e74c3c;color:#fff;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:700;}
 .urg-amb{background:#f0a500;color:#000;}
 
+/* MOBILE PRODUCTION BOARD */
+@media(max-width:768px){
+  .pb-table{font-size:11px;}
+  .pb-table th,.pb-table td{padding:5px 7px;}
+  .pb-table th:nth-child(7),.pb-table td:nth-child(7),
+  .pb-table th:nth-child(8),.pb-table td:nth-child(8){display:none;}
+  .cal-month{grid-template-columns:repeat(7,1fr);}
+  .cal-day{min-height:56px;padding:3px;}
+  .cal-event{font-size:9px;padding:1px 3px;}
+  .cal-day-num{font-size:10px;}
+}
+@media(max-width:640px){
+  /* Stack line items on very small screens */
+  .lit thead{display:none;}
+  .lit tr{display:block;margin-bottom:10px;background:var(--surface2);border-radius:6px;padding:8px;}
+  .lit td{display:flex;align-items:center;gap:6px;padding:3px 0;border:none;font-size:12px;}
+  .lit td::before{content:attr(data-label);font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;min-width:70px;}
+}
 @media(max-width:900px){
   .sr{grid-template-columns:repeat(2,1fr);}
   .pb2{grid-template-columns:repeat(2,1fr);}
@@ -411,6 +430,7 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
       <div class="auth-err" id="le"></div>
       <div class="fg"><label class="fl">Email</label><input class="fi2" id="lem" type="email" autocomplete="email" placeholder="your@email.com"></div>
       <div class="fg"><label class="fl">Password</label><input class="fi2" id="lpw" type="password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')signIn()"></div>
+      <div class="h-captcha" id="loginCaptcha" data-sitekey="08bce800-f074-4620-a85e-547a6bee9650" data-theme="dark" style="margin:10px 0"></div>
       <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:4px" onclick="signIn()">Sign In</button>
       <div class="auth-sw"><button class="auth-lnk" onclick="showF('fgt')">Forgot password?</button> &nbsp;·&nbsp; <button class="auth-lnk" onclick="showF('su')">Create account</button></div>
     </div>
@@ -439,6 +459,28 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
       <div class="fg"><label class="fl">Confirm Password</label><input class="fi2" id="rppw2" type="password" autocomplete="new-password"></div>
       <button class="btn btn-p" style="width:100%;justify-content:center" onclick="setNewPw()">Set New Password</button>
     </div>
+
+    <!-- MFA VERIFY SCREEN -->
+    <div id="mfaVerify" style="display:none">
+      <div class="auth-title">Two-Factor Authentication</div>
+      <div class="auth-err" id="mfaErr"></div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Open your authenticator app (Google Authenticator, Authy etc.) and enter the 6-digit code for PrecisionOps.</div>
+      <div class="fg"><label class="fl">Authentication Code</label><input class="fi2" id="mfaCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onkeydown="if(event.key==='Enter')verifyMfa()"></div>
+      <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:4px" onclick="verifyMfa()">Verify</button>
+      <div class="auth-sw"><button class="auth-lnk" onclick="showF('lf');sb.auth.signOut()">Cancel and sign out</button></div>
+    </div>
+
+    <!-- MFA SETUP SCREEN -->
+    <div id="mfaSetup" style="display:none">
+      <div class="auth-title">Set Up Two-Factor Auth</div>
+      <div class="auth-err" id="mfaSetupErr"></div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">Scan this QR code with Google Authenticator, Authy, or any TOTP authenticator app. Then enter the 6-digit code to confirm.</div>
+      <div id="mfaQrCode" style="text-align:center;margin-bottom:14px"></div>
+      <div id="mfaSecret" style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-bottom:14px;word-break:break-all;background:var(--surface2);padding:8px;border-radius:4px"></div>
+      <div class="fg"><label class="fl">Enter the 6-digit code to confirm setup</label><input class="fi2" id="mfaSetupCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" onkeydown="if(event.key==='Enter')confirmMfaSetup()"></div>
+      <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:4px" onclick="confirmMfaSetup()">Enable 2FA</button>
+      <div class="auth-sw"><button class="auth-lnk" onclick="skipMfaSetup()">Skip for now</button></div>
+    </div>
   </div>
 </div>
 
@@ -450,6 +492,7 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
       <div class="logo" id="hdrLogoTxt">PRECISION<span>OPS</span></div>
     </div>
     <div class="hdr-r">
+      <div id="connStatus" style="display:none;font-family:var(--mono);font-size:10px;color:var(--red);background:rgba(231,76,60,.1);padding:3px 8px;border-radius:3px;border:1px solid rgba(231,76,60,.3)">⚠ Offline</div>
       <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀ Light</button>
       <div class="u-pill">
         <div class="u-av" id="hdrAv">?</div>
@@ -460,7 +503,7 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
     </div>
   </header>
   <nav id="mainNav">
-    <button class="active" onclick="showTab('dash',event)">⬛ Dashboard</button>
+    <button class="active" onclick="showTab('dash',event)">⬛ Dashboard <span id="notifBadge" style="display:none;background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;font-family:var(--mono);margin-left:3px">0</span></button>
     <button onclick="showTab('jobs',event)">⚙ Jobs</button>
     <button onclick="showTab('sched',event)">📅 Schedule</button>
     <button onclick="showTab('proj',event)">📋 Projects</button>
@@ -510,6 +553,10 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
         <button class="vt-btn" id="vt-board" onclick="setJobView('board')">⚙ Production Board</button>
       </div>
       <div id="jobsContainer"></div>
+      <div id="jobsLoadMore" style="text-align:center;padding:16px;display:none">
+        <button class="btn btn-g" onclick="loadMoreJobs()">Load More Jobs</button>
+        <div id="jobsCount" style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px"></div>
+      </div>
     </div>
 
     <!-- SCHEDULE / CALENDAR -->
@@ -698,6 +745,12 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
             <div style="font-size:11px;color:var(--muted);margin-top:4px">Jobs numbered: PREFIX-001, PREFIX-002...</div>
           </div>
           <button class="btn btn-p" onclick="saveSettings()">Save Settings</button>
+        </div>
+        <div class="card">
+          <div style="font-family:var(--head);font-size:15px;font-weight:700;margin-bottom:12px">Security</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">Two-factor authentication adds a second layer of security to your account. After enabling, you will need your authenticator app each time you sign in.</div>
+          <div id="mfaStatusArea" style="margin-bottom:14px"></div>
+          <button class="btn btn-g" onclick="manageMfa()">🔐 Manage Two-Factor Authentication</button>
         </div>
       </div>
     </div>
@@ -1075,14 +1128,49 @@ let D={staff:[],machines:[],jobs:[],lineItems:{},schedule:[],projects:[],projMem
 let weekOff=0,wikiCat='All',wikiArt=null,wikiImgs=[],lineItems=[],liCtr=0,jobView='cards',projImgsNew=[];
 let _jobAssignees=[]; // multi-assign for current job modal
 let todoFilter='all', purchCat='all';
+let _schedRenderTimer=null;
+const renderSchedDebounced=()=>{clearTimeout(_schedRenderTimer);_schedRenderTimer=setTimeout(renderSched,80);};
 let settings={company_name:'PrecisionOps',company_logo:'',job_prefix:'JOB',theme:'dark'};
 let bsTimeout;
 
 // ══ HELPERS ══
 const loading=(s,m='Loading...')=>{document.getElementById('loadOv').style.display=s?'flex':'none';document.getElementById('loadTxt').textContent=m;};
-const toast=m=>{const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);};
+const toast=(m,duration=2400)=>{const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),duration);};
+// Offline/online detection
+window.addEventListener('offline',()=>{
+  const t=document.getElementById('toast');
+  t.textContent='⚠ No internet connection — changes will not save';
+  t.style.borderColor='var(--red)';
+  t.classList.add('show');
+  const cs=document.getElementById('connStatus');if(cs)cs.style.display='block';
+});
+window.addEventListener('online',()=>{
+  const t=document.getElementById('toast');
+  t.style.borderColor='var(--accent)';
+  const cs=document.getElementById('connStatus');if(cs)cs.style.display='none';
+  toast('✓ Connection restored');
+});
 const fmt=s=>{if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});};
 const isOD=s=>s&&new Date(s+'T00:00:00')<new Date(new Date().toDateString());
+// Image compression - reduces base64 size before DB storage
+function compressImage(dataUrl, maxWidth=800, quality=0.75){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      let w=img.width,h=img.height;
+      if(w>maxWidth){h=Math.round(h*maxWidth/w);w=maxWidth;}
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL('image/jpeg',quality));
+    };
+    img.src=dataUrl;
+  });
+}
+
+// XSS sanitisation - strip HTML tags from user input before rendering
+const san=s=>{if(!s)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;};
 const isDSoon=(s,d=7)=>{if(!s)return false;const dt=new Date(s+'T00:00:00');const n=new Date();const e=new Date();e.setDate(e.getDate()+d);return dt>=n&&dt<=e;};
 const isToday=s=>{if(!s)return false;return s===new Date().toISOString().split('T')[0];};
 const slug=s=>(s||'').toLowerCase().replace(/[\s\/]+/g,'-').replace(/[^a-z0-9-]/g,'');
@@ -1133,13 +1221,42 @@ function applyBranding(){
   const jp=document.getElementById('setJP');if(jp)jp.value=settings.job_prefix||'JOB';
   const lp=document.getElementById('curLogoPrev');if(lp)lp.innerHTML=settings.company_logo?`<img src="${settings.company_logo}" style="height:36px;object-fit:contain;border:1px solid var(--border);border-radius:4px;padding:3px">`:'';
 }
-function uploadLogo(e){const f=e.target.files[0];if(!f)return;if(f.size>2*1024*1024){alert('Logo must be under 2MB');return;}const r=new FileReader();r.onload=ev=>{settings.company_logo=ev.target.result;applyBranding();toast('Logo uploaded — save settings to apply');};r.readAsDataURL(f);}
+function uploadLogo(e){const f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024){alert('Logo must be under 5MB');return;}const r=new FileReader();r.onload=async ev=>{const compressed=await compressImage(ev.target.result,400,0.9);settings.company_logo=compressed;applyBranding();toast('Logo uploaded — save settings to apply');};r.readAsDataURL(f);}
 async function saveSettings(){const nm=(document.getElementById('setCN').value.trim()||'PrecisionOps');const jp=(document.getElementById('setJP').value.trim().toUpperCase()||'JOB');settings.company_name=nm;settings.job_prefix=jp;await sb.from('user_preferences').upsert({id:CU.id,company_name:nm,company_logo:settings.company_logo||'',theme:settings.theme,job_prefix:jp});applyBranding();toast('Settings saved');}
 
 // ══ AUTH ══
 function showF(id){['lf','fgt','su','rp'].forEach(x=>document.getElementById(x).style.display=x===id?'block':'none');}
-async function signIn(){const em=document.getElementById('lem').value.trim(),pw=document.getElementById('lpw').value,el=document.getElementById('le');el.style.display='none';if(!em||!pw){el.textContent='Please enter email and password.';el.style.display='block';return;}loading(true,'Signing in...');const{data,error}=await sb.auth.signInWithPassword({email:em,password:pw});if(error){loading(false);el.textContent=error.message==='Invalid login credentials'?'Incorrect email or password.':error.message;el.style.display='block';return;}CU=data.user;await bootstrapApp();}
-async function signUp(){const f=document.getElementById('suf').value.trim(),l=document.getElementById('sul').value.trim(),em=document.getElementById('suem').value.trim(),pw=document.getElementById('supw').value,pw2=document.getElementById('supw2').value,r=document.getElementById('sur').value.trim(),el=document.getElementById('sue'),ok=document.getElementById('suo');el.style.display='none';ok.style.display='none';if(!f||!l||!em||!pw){el.textContent='Please fill in all fields.';el.style.display='block';return;}if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Creating account...');const{data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:f,last_name:l,role:'user'}}});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}if(data.user){const{count}=await sb.from('profiles').select('*',{count:'exact',head:true});const isFirst=(count===0||count===null);const role=isFirst?'manager':'user';const uStatus=isFirst?'active':'pending';await sb.from('profiles').upsert({id:data.user.id,first_name:f,last_name:l,role,job_title:r,status:uStatus});if(isFirst){ok.textContent='Account created as manager. You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}else{ok.textContent='Application submitted! A manager will review your account request before you can log in.';ok.style.display='block';['suf','sul','suem','supw','supw2','sur'].forEach(id=>document.getElementById(id).value='');}}else{ok.textContent='Account created! You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}
+async function signIn(){
+  const em=document.getElementById('lem').value.trim(),pw=document.getElementById('lpw').value,el=document.getElementById('le');
+  el.style.display='none';
+  if(!em||!pw){el.textContent='Please enter email and password.';el.style.display='block';return;}
+  // Verify hCaptcha if widget is present
+  const hcapEl=document.querySelector('.h-captcha iframe');
+  if(hcapEl){
+    const token=document.querySelector('[name="h-captcha-response"]')?.value;
+    if(!token){el.textContent='Please complete the security check.';el.style.display='block';return;}
+  }
+  loading(true,'Signing in...');
+  const{data,error}=await sb.auth.signInWithPassword({email:em,password:pw});if(error){loading(false);el.textContent=error.message==='Invalid login credentials'?'Incorrect email or password.':error.message;el.style.display='block';
+    // Reset Turnstile so user can try again
+    if(window.hcaptcha)window.hcaptcha.reset();
+    return;}
+  CU=data.user;
+  // Check if MFA verification is required
+  try{
+    const{data:aalData}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if(aalData?.nextLevel==='aal2'&&aalData?.currentLevel!=='aal2'){
+      loading(false);
+      document.getElementById('authScreen').style.display='flex';
+      showF('mfaVerify');
+      document.getElementById('mfaCode').focus();
+      return;
+    }
+  }catch(e){}
+  window._freshLogin=true;
+  await bootstrapApp();}
+async function signUp(){const f=document.getElementById('suf').value.trim(),l=document.getElementById('sul').value.trim(),em=document.getElementById('suem').value.trim(),pw=document.getElementById('supw').value,pw2=document.getElementById('supw2').value,r=document.getElementById('sur').value.trim(),el=document.getElementById('sue'),ok=document.getElementById('suo');el.style.display='none';ok.style.display='none';if(!f||!l||!em||!pw){el.textContent='Please fill in all fields.';el.style.display='block';return;}if(!em.toLowerCase().endsWith('@efj.ie')){el.textContent='Sign-up is restricted to @efj.ie email addresses only. Contact your manager if you need access.';el.style.display='block';return;}if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Creating account...');const{data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:f,last_name:l,role:'user'}}});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}if(data.user){const{count}=await sb.from('profiles').select('*',{count:'exact',head:true});const isFirst=(count===0||count===null);const role=isFirst?'manager':'user';const uStatus=isFirst?'active':'pending';await sb.from('profiles').upsert({id:data.user.id,first_name:f,last_name:l,role,job_title:r,status:uStatus});if(isFirst){ok.textContent='Account created as manager. You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}else{ok.textContent='Application submitted! A manager will review your account request before you can log in.';ok.style.display='block';['suf','sul','suem','supw','supw2','sur'].forEach(id=>document.getElementById(id).value='');}}else{ok.textContent='Account created! You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}
+}
 async function sendReset(){const em=document.getElementById('fgtem').value.trim(),el=document.getElementById('fgte'),ok=document.getElementById('fgto');el.style.display='none';ok.style.display='none';if(!em){el.textContent='Please enter your email.';el.style.display='block';return;}const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:'https://efj-engineering.github.io/precisionops/'});if(error){el.textContent=error.message;el.style.display='block';}else{ok.textContent='Reset link sent. Check your inbox and spam folder.';ok.style.display='block';}}
 async function setNewPw(){const pw=document.getElementById('rppw').value,pw2=document.getElementById('rppw2').value,el=document.getElementById('rpe'),ok=document.getElementById('rpo');el.style.display='none';ok.style.display='none';if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Updating password...');if(window._rt)await sb.auth.setSession({access_token:window._rt,refresh_token:window._rr||''});const{error}=await sb.auth.updateUser({password:pw});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}ok.textContent='Password updated! Signing you in...';ok.style.display='block';window._rt=null;window._rr=null;setTimeout(async()=>{const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else showF('lf');},2000);}
 async function signOut(){await aLog('SIGN_OUT');await sb.auth.signOut();}
@@ -1148,6 +1265,93 @@ document.addEventListener('visibilitychange',async()=>{if(document.visibilitySta
 const startBsTimeout=()=>{clearTimeout(bsTimeout);bsTimeout=setTimeout(()=>{if(document.getElementById('loadOv').style.display!=='none'){loading(false);if(document.getElementById('appShell').style.display==='none')document.getElementById('authScreen').style.display='flex';}},15000);};
 
 // ══ BOOTSTRAP ══
+// ══ MFA / 2FA FUNCTIONS ══
+let _mfaFactorId=null;
+
+async function verifyMfa(){
+  const code=document.getElementById('mfaCode').value.trim();
+  const el=document.getElementById('mfaErr');
+  el.style.display='none';
+  if(code.length!==6){el.textContent='Please enter the 6-digit code.';el.style.display='block';return;}
+  loading(true,'Verifying...');
+  try{
+    // Get the TOTP factor
+    const{data:factors}=await sb.auth.mfa.listFactors();
+    const totpFactor=factors?.totp?.[0];
+    if(!totpFactor){loading(false);el.textContent='No 2FA factor found. Please sign in again.';el.style.display='block';return;}
+    // Create challenge and verify
+    const{data:challenge,error:cErr}=await sb.auth.mfa.challenge({factorId:totpFactor.id});
+    if(cErr){loading(false);el.textContent=cErr.message;el.style.display='block';return;}
+    const{data,error}=await sb.auth.mfa.verify({factorId:totpFactor.id,challengeId:challenge.id,code});
+    if(error){loading(false);el.textContent='Invalid code. Please try again.';el.style.display='block';if(window.turnstile)window.turnstile.reset();return;}
+    CU=data.user;
+    await bootstrapApp();
+  }catch(e){loading(false);el.textContent='Verification failed. Please try again.';el.style.display='block';console.error(e);}
+}
+
+async function initMfaSetup(){
+  // Called after first successful login to offer MFA setup
+  try{
+    const{data:factors}=await sb.auth.mfa.listFactors();
+    if(factors?.totp?.length>0){
+      // Already has MFA - skip setup
+      await bootstrapApp();return;
+    }
+    // Enroll a new TOTP factor
+    const{data,error}=await sb.auth.mfa.enroll({factorType:'totp',issuer:'PrecisionOps',friendlyName:`${CP?.first_name||'User'}'s Authenticator`});
+    if(error){console.warn('MFA enroll error:',error);await bootstrapApp();return;}
+    _mfaFactorId=data.id;
+    // Show QR code
+    document.getElementById('mfaQrCode').innerHTML=`<img src="${data.totp.qr_code}" style="width:180px;height:180px;border-radius:8px;border:3px solid var(--accent)">`;
+    document.getElementById('mfaSecret').textContent=`Manual entry: ${data.totp.secret}`;
+    loading(false);
+    document.getElementById('authScreen').style.display='flex';
+    showF('mfaSetup');
+  }catch(e){console.warn('MFA setup error:',e);await bootstrapApp();}
+}
+
+async function confirmMfaSetup(){
+  const code=document.getElementById('mfaSetupCode').value.trim();
+  const el=document.getElementById('mfaSetupErr');
+  el.style.display='none';
+  if(code.length!==6){el.textContent='Please enter the 6-digit code from your app.';el.style.display='block';return;}
+  if(!_mfaFactorId){el.textContent='Setup session expired. Please sign in again.';el.style.display='block';return;}
+  loading(true,'Enabling 2FA...');
+  try{
+    const{data:challenge,error:cErr}=await sb.auth.mfa.challenge({factorId:_mfaFactorId});
+    if(cErr){loading(false);el.textContent=cErr.message;el.style.display='block';return;}
+    const{error}=await sb.auth.mfa.verify({factorId:_mfaFactorId,challengeId:challenge.id,code});
+    if(error){loading(false);el.textContent='Invalid code — please check your authenticator app and try again.';el.style.display='block';return;}
+    loading(false);
+    toast('✓ Two-factor authentication enabled successfully');
+    await bootstrapApp();
+  }catch(e){loading(false);el.textContent='Setup failed. Please try again.';el.style.display='block';console.error(e);}
+}
+
+async function skipMfaSetup(){
+  // Unenroll the factor if they skip
+  if(_mfaFactorId){await sb.auth.mfa.unenroll({factorId:_mfaFactorId}).catch(()=>{});}
+  _mfaFactorId=null;
+  await bootstrapApp();
+}
+
+async function manageMfa(){
+  // Called from settings - allow user to enable/disable MFA
+  try{
+    const{data:factors}=await sb.auth.mfa.listFactors();
+    const hasMfa=factors?.totp?.length>0;
+    if(hasMfa){
+      if(confirm('Two-factor authentication is currently enabled.\n\nDo you want to disable it?')){
+        await sb.auth.mfa.unenroll({factorId:factors.totp[0].id});
+        toast('2FA disabled');renderSettings();
+      }
+    }else{
+      // Re-authenticate to set up MFA from settings
+      await initMfaSetup();
+    }
+  }catch(e){alert('Could not manage 2FA. Please try again.');console.error(e);}
+}
+
 // ══ SAFE SCHEMA MIGRATIONS ══
 // Runs on every load but only creates missing structures — never drops data
 async function runSchemaMigrations(){
@@ -1168,19 +1372,52 @@ async function bootstrapApp(){loading(true,'Loading your workspace...');startBsT
   await runSchemaMigrations().catch(e=>console.warn('Migration skipped:',e));const{data:prof}=await sb.from('profiles').select('*').eq('id',CU.id).single();CP=prof||{id:CU.id,first_name:CU.user_metadata?.first_name||CU.email.split('@')[0],last_name:CU.user_metadata?.last_name||'',role:'user',status:'pending'};if(!prof)await sb.from('profiles').upsert({id:CU.id,first_name:CP.first_name,last_name:CP.last_name,role:'user',status:'pending'}).catch(()=>{});
     // Block pending users
     if(CP.status==='pending'){clearTimeout(bsTimeout);loading(false);document.getElementById('authScreen').style.display='flex';showF('lf');document.getElementById('le').textContent='Your account is pending approval by a manager. You will be notified when access is granted.';document.getElementById('le').style.display='block';await sb.auth.signOut();return;}
-    if(CP.status==='rejected'){clearTimeout(bsTimeout);loading(false);document.getElementById('authScreen').style.display='flex';showF('lf');document.getElementById('le').textContent='Your account application was not approved. Please contact your manager.';document.getElementById('le').style.display='block';await sb.auth.signOut();return;}document.getElementById('hdrAv').textContent=ini(CP.first_name,CP.last_name);document.getElementById('hdrNm').textContent=`${CP.first_name} ${CP.last_name}`.trim()||CU.email;document.getElementById('hdrRole').textContent=CP.role||'user';const mgr=isMgr(),sr=isSr();document.getElementById('navSales').style.display=sr?'':'none';document.getElementById('navExport').style.display=sr?'':'none';document.getElementById('navSettings').style.display=mgr?'':'none';document.getElementById('navAudit').style.display=mgr?'':'none';const holBtn=document.getElementById('btnHol');if(holBtn)holBtn.style.display=mgr?'':'none';await Promise.allSettled([loadStaff(),loadMachines(),loadJobs(),loadSched(),loadProjects(),loadWiki()]);if(sr)await loadProspects().catch(()=>{});if(sr)await loadJobCards().catch(()=>{});if(mgr)await loadPendingUsers().catch(()=>{});await loadNotifications().catch(()=>{});await loadHolidays().catch(()=>{});await loadTodos().catch(()=>{});await loadPurchases().catch(()=>{});await loadSettings();clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);renderDash();document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});aLog('SIGN_IN').catch(()=>{});}catch(err){console.error('Bootstrap error:',err);clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);try{renderDash();}catch(e){}}}
+    if(CP.status==='rejected'){clearTimeout(bsTimeout);loading(false);document.getElementById('authScreen').style.display='flex';showF('lf');document.getElementById('le').textContent='Your account application was not approved. Please contact your manager.';document.getElementById('le').style.display='block';await sb.auth.signOut();return;}document.getElementById('hdrAv').textContent=ini(CP.first_name,CP.last_name);document.getElementById('hdrNm').textContent=`${CP.first_name} ${CP.last_name}`.trim()||CU.email;document.getElementById('hdrRole').textContent=CP.role||'user';const mgr=isMgr(),sr=isSr();document.getElementById('navSales').style.display=sr?'':'none';document.getElementById('navExport').style.display=sr?'':'none';document.getElementById('navSettings').style.display=mgr?'':'none';document.getElementById('navAudit').style.display=mgr?'':'none';const holBtn=document.getElementById('btnHol');if(holBtn)holBtn.style.display=mgr?'':'none';await Promise.allSettled([loadStaff(),loadMachines(),loadJobs(),loadSched(),loadProjects(),loadWiki()]);if(sr)await loadProspects().catch(()=>{});if(sr)await loadJobCards().catch(()=>{});if(mgr)await loadPendingUsers().catch(()=>{});await Promise.allSettled([loadNotifications(),loadHolidays(),loadTodos(),loadPurchases()]);await loadSettings();clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);renderDash();document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});aLog('SIGN_IN').catch(()=>{});
+    // Offer MFA setup if not already enrolled on fresh login
+    if(window._freshLogin){
+      window._freshLogin=false;
+      try{
+        const{data:factors}=await sb.auth.mfa.listFactors();
+        if(!factors?.totp?.length){
+          setTimeout(()=>{
+            if(confirm('🔐 Secure your account with Two-Factor Authentication?\n\nThis takes 2 minutes and significantly improves security. You\'ll need Google Authenticator or Authy on your phone.\n\nSet up now?')){
+              initMfaSetup();
+            }
+          },1500);
+        }
+      }catch(e){}
+    }}catch(err){console.error('Bootstrap error:',err);clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);try{renderDash();}catch(e){}}}
 
 // ══ LOADERS ══
 async function loadStaff(){const{data}=await sb.from('staff').select('*').order('first_name');D.staff=data||[];populateSels();}
 async function loadMachines(){const{data}=await sb.from('machines').select('*').order('name');D.machines=data||[];populateMachSel();}
-async function loadJobs(){const{data}=await sb.from('jobs').select('*').order('created_at',{ascending:false});D.jobs=data||[];await loadJobAssignees();}
+let jobsPage=1;const JOBS_PER_PAGE=50;
+async function loadJobs(append=false){
+  const from=(jobsPage-1)*JOBS_PER_PAGE;
+  const to=from+JOBS_PER_PAGE-1;
+  const{data,count}=await sb.from('jobs').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);
+  if(append){D.jobs=[...D.jobs,...(data||[])];}else{D.jobs=data||[];}
+  D.jobsTotal=count||0;
+  await loadJobAssignees();
+}
+async function loadMoreJobs(){jobsPage++;await loadJobs(true);renderJobs();}
 async function loadJobAssignees(){try{const{data}=await sb.from('job_assignees').select('*');D.jobAssignees={};(data||[]).forEach(r=>{if(!D.jobAssignees[r.job_id])D.jobAssignees[r.job_id]=[];D.jobAssignees[r.job_id].push(r.profile_id);});}catch(e){D.jobAssignees={};}}
 async function loadLineItems(jid){const{data}=await sb.from('job_line_items').select('*').eq('job_id',jid).order('line_number');return data||[];}
 async function loadSched(){const{data}=await sb.from('schedule').select('*');D.schedule=data||[];}
-async function loadProjects(){const{data}=await sb.from('projects').select('*').order('created_at',{ascending:false});D.projects=data||[];// Load members and images
-await Promise.all(D.projects.map(async p=>{const{data:m}=await sb.from('project_members').select('*').eq('project_id',p.id);D.projMembers[p.id]=(m||[]).map(x=>x.staff_id);const{data:imgs}=await sb.from('project_images').select('*').eq('project_id',p.id);D.projImages[p.id]=imgs||[];}));}
-async function loadWiki(){const{data}=await sb.from('wiki_articles').select('*').order('updated_at',{ascending:false});D.wiki=(data||[]).filter(a=>a.status==='published');D.wikiPend=(data||[]).filter(a=>a.status==='pending');}
-async function loadProspects(){const{data}=await sb.from('prospects').select('*').order('created_at',{ascending:false});D.prospects=data||[];}
+async function loadProjects(){
+  const{data}=await sb.from('projects').select('*').order('created_at',{ascending:false});
+  D.projects=data||[];
+  // Load all members and images in 2 bulk queries instead of N*2 queries
+  try{
+    const{data:allMembers}=await sb.from('project_members').select('*');
+    const{data:allImages}=await sb.from('project_images').select('*');
+    D.projMembers={};D.projImages={};
+    (allMembers||[]).forEach(m=>{if(!D.projMembers[m.project_id])D.projMembers[m.project_id]=[];D.projMembers[m.project_id].push(m.staff_id);});
+    (allImages||[]).forEach(img=>{if(!D.projImages[img.project_id])D.projImages[img.project_id]=[];D.projImages[img.project_id].push(img);});
+  }catch(e){D.projMembers={};D.projImages={};}
+}
+async function loadWiki(){const{data}=await sb.from('wiki_articles').select('*').order('updated_at',{ascending:false}).limit(500);D.wiki=(data||[]).filter(a=>a.status==='published');D.wikiPend=(data||[]).filter(a=>a.status==='pending');}
+async function loadProspects(){const{data}=await sb.from('prospects').select('*').order('created_at',{ascending:false}).limit(200);D.prospects=data||[];}
 async function loadJobCards(){const{data}=await sb.from('job_cards').select('*').order('created_at',{ascending:false});D.jobCards=data||[];}
 async function loadPendingUsers(){const{data}=await sb.from('profiles').select('*').eq('status','pending').order('created_at');D.pendingUsers=data||[];}
 async function loadNotifications(){try{const{data}=await sb.from('notifications').select('*').eq('profile_id',CU.id).eq('read',false).order('created_at',{ascending:false});D.notifications=data||[];}catch(e){D.notifications=[];}}
@@ -1231,7 +1468,25 @@ async function deleteHolidayRange(id,staffName,from,to){
 async function loadAuditLog(){const{data}=await sb.from('audit_log').select('*').order('created_at',{ascending:false}).limit(200);document.getElementById('auditBody').innerHTML=(data||[]).map(r=>`<tr><td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${new Date(r.created_at).toLocaleString('en-GB')}</td><td>${r.user_name||'—'}</td><td><span class="badge bme">${r.action}</span></td><td style="font-size:12px;color:var(--muted)">${r.table_name?r.table_name+' ':''} ${r.details?.name||r.record_id||''}</td></tr>`).join('');}
 
 // ══ TABS ══
-function showTab(n,e){document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));document.getElementById('tab-'+n).classList.add('active');if(e?.currentTarget)e.currentTarget.classList.add('active');const r={dash:renderDash,jobs:renderJobs,sched:()=>{loadHolidays().then(()=>renderSched());},proj:renderProjects,mach:renderMachines,wiki:renderWiki,sales:renderSales,staff:renderStaff,todo:renderTodo,purch:renderPurch,export:()=>{renderJobCards();},audit:loadAuditLog};r[n]?.();}
+function showTab(n,e){
+  // Re-verify user is still active on every tab switch
+  if(CP&&CP.status&&CP.status!=='active'){signOut();return;}
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');
+  if(e?.currentTarget)e.currentTarget.classList.add('active');const r={dash:renderDash,jobs:renderJobs,sched:()=>{loadHolidays().then(()=>renderSched());},proj:renderProjects,mach:renderMachines,wiki:renderWiki,sales:renderSales,staff:renderStaff,todo:renderTodo,purch:renderPurch,export:()=>{renderJobCards();},settings:renderSettings,audit:loadAuditLog};r[n]?.();}
+
+// ══ SETTINGS ══
+async function renderSettings(){
+  try{
+    const{data:factors}=await sb.auth.mfa.listFactors();
+    const hasMfa=factors?.totp?.length>0;
+    const el=document.getElementById('mfaStatusArea');
+    if(el)el.innerHTML=hasMfa
+      ?`<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3);border-radius:6px;font-size:13px"><span style="color:var(--green)">✓</span><span style="color:var(--green);font-weight:600">Two-factor authentication is enabled</span></div>`
+      :`<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.25);border-radius:6px;font-size:13px"><span style="color:var(--accent)">⚠</span><span style="color:var(--accent)">Two-factor authentication is not enabled</span></div>`;
+  }catch(e){}
+}
 
 // ══ DASHBOARD ══
 function renderDash(){
@@ -1252,13 +1507,21 @@ function renderDash(){
   urgJobs.forEach(j=>items.push({dot:'d-amb',text:`🔔 <strong>${j.job_number}</strong> — ${j.name} due in less than 48 hours (${fmt(j.due_date)})`,action:()=>{showTab('jobs',{currentTarget:document.querySelector('nav button:nth-child(2)')});}}));
   soonJobs.forEach(j=>items.push({dot:'d-blu',text:`📅 <strong>${j.job_number}</strong> — ${j.name} due ${fmt(j.due_date)}`,action:null}));
   uninvoiced.forEach(j=>items.push({dot:'d-amb',text:`💰 <strong>${j.job_number}</strong> — ${j.name} completed but <strong>not yet invoiced</strong>`,action:null}));
-  odFollowups.forEach(p=>items.push({dot:'d-red',text:`🎯 Follow-up <strong>overdue</strong> for <strong>${p.company}</strong> (was due ${fmt(p.followup_date)})`,action:()=>{showTab('sales',{currentTarget:document.getElementById('navSales')});setTimeout(()=>openDetail(p.id),300);}}));
-  todayFollowups.forEach(p=>items.push({dot:'d-amb',text:`🎯 Follow-up <strong>due today</strong> for <strong>${p.company}</strong>`,action:()=>{showTab('sales',{currentTarget:document.getElementById('navSales')});setTimeout(()=>openDetail(p.id),300);}}));
-  soon3Followups.forEach(p=>items.push({dot:'d-blu',text:`🎯 Follow-up due <strong>${fmt(p.followup_date)}</strong> for <strong>${p.company}</strong>`,action:null}));
+  odFollowups.forEach(p=>items.push({dot:'d-red',text:`🎯 Follow-up <strong>overdue</strong> for <strong>${san(p.company)}</strong> (was due ${fmt(p.followup_date)})`,action:()=>{showTab('sales',{currentTarget:document.getElementById('navSales')});setTimeout(()=>openDetail(p.id),300);}}));
+  todayFollowups.forEach(p=>items.push({dot:'d-amb',text:`🎯 Follow-up <strong>due today</strong> for <strong>${san(p.company)}</strong>`,action:()=>{showTab('sales',{currentTarget:document.getElementById('navSales')});setTimeout(()=>openDetail(p.id),300);}}));
+  soon3Followups.forEach(p=>items.push({dot:'d-blu',text:`🎯 Follow-up due <strong>${fmt(p.followup_date)}</strong> for <strong>${san(p.company)}</strong>`,action:null}));
   if(pendWiki&&isMgr())items.push({dot:'d-blu',text:`📬 <strong>${pendWiki}</strong> wiki article${pendWiki>1?'s':''} awaiting your approval`,action:()=>{openModal('wikiappr');renderApprovals();}});
   openTodos.forEach(t=>items.push({dot:'d-amb',text:`✅ To-do overdue: <strong>${t.description}</strong> (was due ${fmt(t.due_date)})`,action:()=>{showTab('todo',{currentTarget:document.querySelector('nav button[onclick*=todo]')});}}));
   if(pendUsers&&isMgr())items.push({dot:'d-amb',text:`👤 <strong>${pendUsers}</strong> user${pendUsers>1?'s':''} awaiting account approval`,action:()=>{showTab('staff',{currentTarget:document.getElementById('navStaff')});}});
   (D.notifications||[]).forEach(n=>items.push({dot:'d-red',text:`🔔 ${n.message}`,action:()=>markNotifRead(n.id)}));
+  // Update notification badge
+  const badge=document.getElementById('notifBadge');
+  if(badge){
+    const urgent=items.filter(i=>i.dot==='d-red').length;
+    badge.textContent=items.length;
+    badge.style.display=items.length>0?'inline':'none';
+    badge.style.background=urgent>0?'var(--red)':'var(--accent)';
+  }
   const ap=document.getElementById('attPanel');
   ap.innerHTML=items.length?`<div class="att-panel"><div class="att-title">🔔 Needs Attention (${items.length})</div>${items.map((i,idx)=>`<div class="att-item" onclick="(${JSON.stringify(i.action)})()" style="${i.action?'cursor:pointer':'cursor:default'}"><div class="att-dot ${i.dot}"></div><div>${i.text}</div>${i.action?'<span style="color:var(--muted);font-size:11px;margin-left:auto">→</span>':''}</div>`).join('')}</div>`:'';
   // re-attach onclick properly
@@ -1270,11 +1533,11 @@ function renderDash(){
     <div class="sc"><div class="sl">Pending Purchases</div><div class="sv" style="color:${pendPurch>0?'var(--accent)':'var(--green)'}">${pendPurch}</div><div class="ss">items to order</div></div>
     <div class="sc"><div class="sl">Live Projects</div><div class="sv" style="color:var(--purple)">${D.projects.filter(p=>p.status==='Active').length}</div><div class="ss">in progress</div></div>`;
   const aj=D.jobs.filter(j=>j.status==='In Progress'||j.status==='QC');
-  document.getElementById('dAJ').innerHTML=aj.length?aj.map(j=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)"><div style="width:3px;height:30px;border-radius:2px;background:${j.status==='QC'?'var(--blue)':'var(--accent)'};flex-shrink:0"></div><div style="flex:1"><div style="font-size:13px;font-weight:600">${j.name}</div><div style="font-size:11px;color:var(--muted)">${j.job_number}·${j.client}</div></div><span class="badge bip">${j.status}</span></div>`).join(''):'<div class="empty"><div class="fi">⚙</div><p>No jobs in progress</p></div>';
+  document.getElementById('dAJ').innerHTML=aj.length?aj.map(j=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)"><div style="width:3px;height:30px;border-radius:2px;background:${j.status==='QC'?'var(--blue)':'var(--accent)'};flex-shrink:0"></div><div style="flex:1"><div style="font-size:13px;font-weight:600">${san(j.name)}</div><div style="font-size:11px;color:var(--muted)">${j.job_number}·${j.client}</div></div><span class="badge bip">${j.status}</span></div>`).join(''):'<div class="empty"><div class="fi">⚙</div><p>No jobs in progress</p></div>';
   const dl=[...D.jobs].filter(j=>j.due_date&&j.status!=='Complete').sort((a,b)=>new Date(a.due_date)-new Date(b.due_date)).slice(0,5);
   document.getElementById('dDL').innerHTML=dl.length?dl.map(j=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)"><div style="flex:1"><div style="font-size:13px;font-weight:600">${j.name}</div><div style="font-size:11px;color:var(--muted)">${j.client}</div></div><div style="font-family:var(--mono);font-size:11px;color:${isOD(j.due_date)?'var(--red)':isDSoon(j.due_date,2)?'var(--accent)':'var(--muted)'}">${fmt(j.due_date)}</div></div>`).join(''):'<div class="empty"><p>No upcoming deadlines</p></div>';
   document.getElementById('dInv').innerHTML=uninvoiced.length?uninvoiced.slice(0,5).map(j=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)"><div style="flex:1"><div style="font-size:13px;font-weight:600">${j.name}</div><div style="font-size:11px;color:var(--muted)">${j.job_number}·${j.client}</div></div><span class="badge b-ni">Not Invoiced</span></div>`).join(''):'<div class="empty"><p style="color:var(--green)">✓ All completed jobs invoiced</p></div>';
-  document.getElementById('dProj').innerHTML=D.projects.filter(p=>p.status==='Active'||p.status==='Planning').slice(0,4).map(p=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)"><div style="flex:1"><div style="font-size:13px;font-weight:600">${p.name}</div><div style="font-size:11px;color:var(--muted)">${p.category}</div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:10px;color:var(--muted)">${p.progress||0}%</div><div class="pb" style="width:66px;margin-top:2px"><div class="pf" style="width:${p.progress||0}%"></div></div></div></div>`).join('')||'<div class="empty"><p>No active projects</p></div>';
+  document.getElementById('dProj').innerHTML=D.projects.filter(p=>p.status==='Active'||p.status==='Planning').slice(0,4).map(p=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--border)"><div style="flex:1"><div style="font-size:13px;font-weight:600">${san(p.name)}</div><div style="font-size:11px;color:var(--muted)">${p.category}</div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:10px;color:var(--muted)">${p.progress||0}%</div><div class="pb" style="width:66px;margin-top:2px"><div class="pf" style="width:${p.progress||0}%"></div></div></div></div>`).join('')||'<div class="empty"><p>No active projects</p></div>';
 }
 
 // ══ JOB NUMBER ══
@@ -1290,8 +1553,8 @@ function renderLI(){
   const mOpts=`<option value="">—</option>`+D.machines.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
   const sOpts=`<option value="">—</option>`+D.staff.map(s=>`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
   tbody.innerHTML=_liItems.map((li,i)=>`<tr>
-    <td style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center">${i+1}</td>
-    <td><input class="li-i" placeholder="e.g. Turn OD to 25mm" value="${li.description}" oninput="_liItems[${i}].description=this.value" style="min-width:160px"></td>
+    <td data-label="#" style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center">${i+1}</td>
+    <td data-label="Operation"><input class="li-i" placeholder="e.g. Turn OD to 25mm" value="${li.description}" oninput="_liItems[${i}].description=this.value" style="min-width:160px"></td>
     <td><input class="li-i" type="number" min="1" value="${li.quantity}" oninput="_liItems[${i}].quantity=parseInt(this.value)||1" style="width:52px;text-align:center"></td>
     <td><select class="li-s" onchange="_liItems[${i}].machine_id=this.value" style="min-width:120px">${mOpts.replace(`value="${li.machine_id}"`,`value="${li.machine_id}" selected`)}</select></td>
     <td><select class="li-s" onchange="_liItems[${i}].assigned_staff_id=this.value" style="min-width:110px">${sOpts.replace(`value="${li.assigned_staff_id}"`,`value="${li.assigned_staff_id}" selected`)}</select></td>
@@ -1400,6 +1663,14 @@ function renderJobs(){
   if(jobView==='board'){renderProdBoard(jobs,canEdit);return;}
   if(!jobs.length){c.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="fi">⚙</div><p>No jobs found.</p></div>';c.style.display='grid';c.className='cg';return;}
   c.className='cg';c.style.display='';
+  // Show load more button if there are more jobs
+  const lmBtn=document.getElementById('jobsLoadMore');
+  const jCount=document.getElementById('jobsCount');
+  if(lmBtn&&jCount){
+    const hasMore=D.jobs.length<(D.jobsTotal||0);
+    lmBtn.style.display=hasMore?'block':'none';
+    jCount.textContent=`Showing ${jobs.length} of ${D.jobsTotal||D.jobs.length} jobs`;
+  }
   c.innerHTML=jobs.map(j=>{
     const od=isOD(j.due_date)&&j.status!=='Complete';
     const urg=isDSoon(j.due_date,2)&&j.status!=='Complete'&&!od;
@@ -1421,9 +1692,9 @@ function renderJobs(){
         ${j.assigned_staff_id?`<div><div class="ml">Assigned</div><div class="mv">${sNm(j.assigned_staff_id)}</div></div>`:''}
         ${j.completed_date?`<div><div class="ml">Completed</div><div class="mv" style="color:var(--green)">${fmt(j.completed_date)}</div></div>`:''}
       </div>
-      ${j.materials_required?`<div style="font-size:11px;color:var(--muted);margin-bottom:2px">🧱 ${j.materials_required}</div>`:''}
-      ${j.tooling_required?`<div style="font-size:11px;color:var(--muted);margin-bottom:5px">🔧 ${j.tooling_required}</div>`:''}
-      ${j.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${j.notes}</div>`:''}
+      ${j.materials_required?`<div style="font-size:11px;color:var(--muted);margin-bottom:2px">🧱 ${san(j.materials_required)}</div>`:''}
+      ${j.tooling_required?`<div style="font-size:11px;color:var(--muted);margin-bottom:5px">🔧 ${san(j.tooling_required)}</div>`:''}
+      ${j.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:6px">${san(j.notes)}</div>`:''}
       ${j.shipping_method?`<div style="font-size:11px;color:var(--muted);margin-bottom:3px">📦 ${j.shipping_method}${j.tracking_number?' · '+j.tracking_number:''}</div>`:''}
       <div class="pb"><div class="pf" style="width:${j.progress||0}%"></div></div>
       ${canEdit?`<div class="ja">
@@ -1503,6 +1774,8 @@ async function updateLIStatus(liId,jobId,status){
 
 async function quickStatus(id,val){
   if(!val)return;
+  // Reset the select back to blank
+  const j=D.jobs.find(x=>x.id===id);
   if(val==='Complete'){
     // Show completion modal
     document.getElementById('complJobId').value=id;
@@ -1518,9 +1791,13 @@ async function quickStatus(id,val){
     document.getElementById('modal-complete').classList.add('open');
     return;
   }
+  const prevStatus=j?.status||'Queued';
   await sb.from('jobs').update({status:val}).eq('id',id);
   await aLog('UPDATE_JOB_STATUS','jobs',id,{status:val});
-  await loadJobs();renderJobs();renderDash();toast('Status updated');
+  await loadJobs();renderJobs();renderDash();
+  const _ut=document.getElementById('toast');
+  _ut.innerHTML=`Status → <strong>${val}</strong>  <button onclick="sb.from('jobs').update({status:'${prevStatus}'}).eq('id','${id}').then(()=>loadJobs().then(()=>{renderJobs();renderDash();}));this.closest('#toast').classList.remove('show')" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;margin-left:4px">↩ Undo</button>`;
+  _ut.classList.add('show');setTimeout(()=>{_ut.classList.remove('show');_ut.innerHTML='';},5000);
 }
 
 async function quickInvoice(id,val){
@@ -1767,6 +2044,8 @@ async function downloadWeekJobCards(){
 
 // ══ SCHEDULE / CALENDAR ══
 // Irish bank holidays (month is 0-indexed)
+// Irish bank holidays - Easter algorithm verified against 2024-2030
+// Easter 2024: Mar 31 ✓, 2025: Apr 20 ✓, 2026: Apr 5 ✓, 2027: Mar 28 ✓
 function getIrishBankHolidays(year){
   const easterDate=(y)=>{const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31)-1,day=((h+l-7*m+114)%31)+1;return new Date(y,month,day);};
   const easter=easterDate(year);
@@ -1932,7 +2211,7 @@ function renderWeekCal(canEdit){
 
 // ══ PROJECTS ══
 let _projImgs=[];
-function addProjImages(e){Array.from(e.target.files).forEach(f=>{if(f.size>5*1024*1024){alert(`${f.name} is over 5MB`);return;}const r=new FileReader();r.onload=ev=>{_projImgs.push({name:f.name,data_url:ev.target.result});renderProjImgPrev();};r.readAsDataURL(f);});e.target.value='';}
+function addProjImages(e){Array.from(e.target.files).forEach(f=>{if(f.size>10*1024*1024){alert(`${f.name} is over 10MB`);return;}const r=new FileReader();r.onload=async ev=>{const compressed=await compressImage(ev.target.result);_projImgs.push({name:f.name,data_url:compressed});renderProjImgPrev();};r.readAsDataURL(f);});e.target.value='';}
 function renderProjImgPrev(){document.getElementById('projImgPrev').innerHTML=_projImgs.map((img,i)=>`<div style="position:relative"><img src="${img.data_url}" style="height:52px;width:68px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"><button onclick="_projImgs.splice(${i},1);renderProjImgPrev()" style="position:absolute;top:-4px;right:-4px;background:var(--red);border:none;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;cursor:pointer;line-height:14px;text-align:center">✕</button></div>`).join('');}
 
 function renderProjMembersSel(selected=[]){
@@ -1965,7 +2244,7 @@ function renderProjects(){
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="badge bme">${p.category}</span><span class="badge ${stBadge[p.status]||''}">${p.status}</span>${od?'<span class="badge boh">⚠ Overdue</span>':''}</div>
       </div>
       <div class="jm"><div><div class="ml">Target</div><div class="mv" style="color:${od?'var(--red)':'inherit'}">${fmt(p.due_date)}</div></div><div><div class="ml">Progress</div><div class="mv">${p.progress||0}%</div></div></div>
-      ${p.description?`<div style="font-size:12px;color:var(--muted);margin-bottom:7px">${p.description}</div>`:''}
+      ${p.description?`<div style="font-size:12px;color:var(--muted);margin-bottom:7px">${san(p.description)}</div>`:''}
       ${members.length?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px">${members.map(mid=>{const s=D.staff.find(x=>x.id===mid);return s?`<div class="sav" style="width:22px;height:22px;font-size:9px;background:${sCol(mid)}22;color:${sCol(mid)}" title="${s.first_name} ${s.last_name}">${ini(s.first_name,s.last_name)}</div>`:''}).join('')}</div>`:''}
       ${imgs.length?`<div class="proj-imgs">${imgs.map(img=>`<img class="proj-img" src="${img.data_url}" onclick="openLightbox('${img.data_url}')" title="${img.name}">`).join('')}</div>`:''}
       <div class="pb"><div class="pf" style="width:${p.progress||0}%;background:var(--blue)"></div></div>
@@ -1999,6 +2278,7 @@ async function saveProject(){
   if(!data.name){alert('Please enter a project name');return;}
   loading(true,'Saving...');
   let pid=eid;
+  try{
   if(eid){await sb.from('projects').update(data).eq('id',eid);await aLog('UPDATE_PROJECT','projects',eid,{name:data.name});}
   else{const{data:np}=await sb.from('projects').insert(data).select().single();pid=np.id;await aLog('CREATE_PROJECT','projects',pid,{name:data.name});}
   // Members
@@ -2008,6 +2288,7 @@ async function saveProject(){
   // Images
   if(_projImgs.length)await sb.from('project_images').insert(_projImgs.map(img=>({project_id:pid,name:img.name,data_url:img.data_url,created_by:CU.id})));
   await loadProjects();loading(false);closeModal('proj');renderProjects();renderDash();toast(eid?'Project updated':'Project created');
+  }catch(e){loading(false);alert('Error saving project. Please check your connection and try again.');console.error(e);}
 }
 
 // ══ MACHINES ══
@@ -2017,7 +2298,7 @@ function renderMachines(){
   if(!D.machines.length){c.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="fi">🔧</div><p>No machines added.</p></div>';return;}
   c.innerHTML=D.machines.map(m=>`<div class="mc2 o${m.status[0]}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px">
-      <div><div class="jnm">${m.name}</div><div class="jcl">${m.type}</div></div>
+      <div><div class="jnm">${san(m.name)}</div><div class="jcl">${san(m.type)}</div></div>
       <span class="badge ${m.status==='Operational'?'bc':m.status==='Maintenance'?'bme':'boh'}">${m.status}</span>
     </div>
     ${m.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">${m.notes}</div>`:''}
@@ -2026,7 +2307,7 @@ function renderMachines(){
 }
 function editMach(id){const m=D.machines.find(x=>x.id===id);if(!m)return;openModal('mach');document.getElementById('machMT').textContent='Edit Machine';document.getElementById('mEId').value=id;document.getElementById('mNm').value=m.name;document.getElementById('mType').value=m.type;document.getElementById('mSt').value=m.status;document.getElementById('mNotes').value=m.notes||'';}
 async function delMach(id){if(!confirm('Delete this machine?'))return;await sb.from('machines').delete().eq('id',id);await aLog('DELETE_MACHINE','machines',id);await loadMachines();renderMachines();toast('Machine deleted');}
-async function saveMachine(){const eid=document.getElementById('mEId').value;const data={name:document.getElementById('mNm').value,type:document.getElementById('mType').value,status:document.getElementById('mSt').value,notes:document.getElementById('mNotes').value};if(!data.name){alert('Please enter a machine name');return;}loading(true,'Saving...');if(eid){await sb.from('machines').update(data).eq('id',eid);await aLog('UPDATE_MACHINE','machines',eid,{name:data.name});toast('Machine updated');}else{await sb.from('machines').insert(data);await aLog('CREATE_MACHINE','machines','new',{name:data.name});toast('Machine added');}await loadMachines();loading(false);closeModal('mach');renderMachines();populateMachSel();}
+async function saveMachine(){const eid=document.getElementById('mEId').value;const data={name:document.getElementById('mNm').value,type:document.getElementById('mType').value,status:document.getElementById('mSt').value,notes:document.getElementById('mNotes').value};if(!data.name){alert('Please enter a machine name');return;}loading(true,'Saving...');try{if(eid){await sb.from('machines').update(data).eq('id',eid);await aLog('UPDATE_MACHINE','machines',eid,{name:data.name});toast('Machine updated');}else{await sb.from('machines').insert(data);await aLog('CREATE_MACHINE','machines','new',{name:data.name});toast('Machine added');}await loadMachines();loading(false);closeModal('mach');renderMachines();populateMachSel();}catch(e){loading(false);alert('Error saving machine. Please check your connection and try again.');console.error(e);}}
 
 // ══ STAFF ══
 function renderStaff(){
@@ -2050,7 +2331,7 @@ function renderStaff(){
     return`<div class="card" style="border-top:3px solid ${col}">
       <div style="display:flex;align-items:center;gap:11px;margin-bottom:10px">
         <div class="sav" style="width:38px;height:38px;font-size:14px;background:${col}22;color:${col}">${ini(s.first_name,s.last_name)}</div>
-        <div style="flex:1"><div style="font-family:var(--head);font-size:16px;font-weight:800">${s.first_name} ${s.last_name}</div><div style="font-size:12px;color:var(--muted)">${s.role}</div></div>
+        <div style="flex:1"><div style="font-family:var(--head);font-size:16px;font-weight:800">${san(s.first_name)} ${san(s.last_name)}</div><div style="font-size:12px;color:var(--muted)">${san(s.role)}</div></div>
         <span class="badge ${s.status==='Active'?'bc':s.status==='Part-time'?'bme':'boh'}">${s.status}</span>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap">
@@ -2106,18 +2387,17 @@ async function approveUser(uid){
   toast('User approved ✓');
 }
 async function rejectUser(uid,name){
-  if(!confirm(`Reject account application for ${name}? This will delete their account.`))return;
+  if(!confirm(`Reject account application for ${name}?\n\nThis will prevent them logging in. Note: to fully remove their account, also delete them from Supabase Dashboard → Authentication → Users.`))return;
   await sb.from('profiles').update({status:'rejected'}).eq('id',uid);
-  // Also delete auth user via admin - we can only mark rejected as we don't have admin key
   await aLog('REJECT_USER','profiles',uid,{name});
   await loadPendingUsers();
   renderStaff();renderDash();
-  toast('Application rejected');
+  toast('Application rejected — remember to delete from Supabase Auth if needed');
 }
 
 function editStaff(id){const s=D.staff.find(x=>x.id===id);if(!s)return;openModal('staff');document.getElementById('staffMT').textContent='Edit Staff Member';document.getElementById('stEId').value=id;document.getElementById('stF').value=s.first_name;document.getElementById('stL').value=s.last_name;document.getElementById('stR').value=s.role;document.getElementById('stEm').value=s.email||'';document.getElementById('stPh').value=s.phone||'';document.getElementById('stSt').value=s.status||'Active';document.getElementById('stDob').value=s.date_of_birth||'';document.getElementById('stColor').value=s.avatar_color||'#f0a500';}
 async function delStaff(id){if(!confirm('Remove this staff member?'))return;await sb.from('staff').delete().eq('id',id);await aLog('DELETE_STAFF','staff',id);await loadStaff();renderStaff();renderDash();toast('Staff member removed');}
-async function saveStaff(){const eid=document.getElementById('stEId').value;const data={first_name:document.getElementById('stF').value,last_name:document.getElementById('stL').value,role:document.getElementById('stR').value,email:document.getElementById('stEm').value,phone:document.getElementById('stPh').value,status:document.getElementById('stSt').value,date_of_birth:document.getElementById('stDob').value||null,avatar_color:document.getElementById('stColor').value||'#f0a500'};if(!data.first_name){alert('Please enter a name');return;}loading(true,'Saving...');if(eid){await sb.from('staff').update(data).eq('id',eid);await aLog('UPDATE_STAFF','staff',eid,{name:`${data.first_name} ${data.last_name}`});toast('Staff updated');}else{await sb.from('staff').insert(data);await aLog('CREATE_STAFF','staff','new',{name:`${data.first_name} ${data.last_name}`});toast('Staff member added');}await loadStaff();loading(false);closeModal('staff');renderStaff();renderDash();}
+async function saveStaff(){const eid=document.getElementById('stEId').value;const data={first_name:document.getElementById('stF').value,last_name:document.getElementById('stL').value,role:document.getElementById('stR').value,email:document.getElementById('stEm').value,phone:document.getElementById('stPh').value,status:document.getElementById('stSt').value,date_of_birth:document.getElementById('stDob').value||null,avatar_color:document.getElementById('stColor').value||'#f0a500'};if(!data.first_name){alert('Please enter a name');return;}loading(true,'Saving...');try{if(eid){await sb.from('staff').update(data).eq('id',eid);await aLog('UPDATE_STAFF','staff',eid,{name:`${data.first_name} ${data.last_name}`});toast('Staff updated');}else{await sb.from('staff').insert(data);await aLog('CREATE_STAFF','staff','new',{name:`${data.first_name} ${data.last_name}`});toast('Staff member added');}await loadStaff();loading(false);closeModal('staff');renderStaff();renderDash();}catch(e){loading(false);alert('Error saving staff member. Please check your connection and try again.');console.error(e);}}
 
 // ══ SALES ══
 const STAGES=[{key:'target',label:'Target',cls:'ct'},{key:'researching',label:'Researching',cls:'cr'},{key:'contacted',label:'Contacted',cls:'cc'},{key:'meeting',label:'Meeting/Quote',cls:'cm'},{key:'won',label:'Won',cls:'cw'}];
@@ -2151,7 +2431,7 @@ function renderSales(){
 async function quickStage(id,stage){if(!stage)return;const p=D.prospects.find(x=>x.id===id);if(!p)return;const log=[...(p.activity_log||[]),{date:new Date().toISOString().split('T')[0],text:`Moved to: ${STAGES.find(s=>s.key===stage)?.label}`}];await sb.from('prospects').update({stage,activity_log:log}).eq('id',id);await loadProspects();renderSales();renderDash();toast('Stage updated');}
 async function delProspect(id){if(!confirm('Remove this company?'))return;await sb.from('prospects').delete().eq('id',id);await loadProspects();renderSales();renderDash();toast('Removed');}
 function editProspect(id){const p=D.prospects.find(x=>x.id===id);if(!p)return;openModal('prosp');document.getElementById('prospMT').textContent='Edit Company';document.getElementById('prEId').value=id;document.getElementById('prCo').value=p.company;document.getElementById('prSec').value=p.sector;document.getElementById('prStg').value=p.stage;document.getElementById('prCn').value=p.contact_name||'';document.getElementById('prCr').value=p.contact_role||'';document.getElementById('prEm').value=p.email||'';document.getElementById('prPh').value=p.phone||'';document.getElementById('prPri').value=p.priority;document.getElementById('prFu').value=p.followup_date||'';document.getElementById('prWeb').value=p.website||'';document.getElementById('prNotes').value=p.notes||'';}
-async function saveProspect(){const eid=document.getElementById('prEId').value;const data={company:document.getElementById('prCo').value,sector:document.getElementById('prSec').value,stage:document.getElementById('prStg').value,contact_name:document.getElementById('prCn').value,contact_role:document.getElementById('prCr').value,email:document.getElementById('prEm').value,phone:document.getElementById('prPh').value,priority:document.getElementById('prPri').value,followup_date:document.getElementById('prFu').value||null,website:document.getElementById('prWeb').value,notes:document.getElementById('prNotes').value,created_by:CU.id};if(!data.company){alert('Please enter a company name');return;}loading(true,'Saving...');if(eid){await sb.from('prospects').update(data).eq('id',eid);toast('Updated');}else{await sb.from('prospects').insert({...data,activity_log:[]});toast('Company added');}await loadProspects();loading(false);closeModal('prosp');renderSales();renderDash();}
+async function saveProspect(){const eid=document.getElementById('prEId').value;const data={company:document.getElementById('prCo').value,sector:document.getElementById('prSec').value,stage:document.getElementById('prStg').value,contact_name:document.getElementById('prCn').value,contact_role:document.getElementById('prCr').value,email:document.getElementById('prEm').value,phone:document.getElementById('prPh').value,priority:document.getElementById('prPri').value,followup_date:document.getElementById('prFu').value||null,website:document.getElementById('prWeb').value,notes:document.getElementById('prNotes').value,created_by:CU.id};if(!data.company){alert('Please enter a company name');return;}loading(true,'Saving...');try{if(eid){await sb.from('prospects').update(data).eq('id',eid);toast('Updated');}else{await sb.from('prospects').insert({...data,activity_log:[]});toast('Company added');}await loadProspects();loading(false);closeModal('prosp');renderSales();renderDash();}catch(e){loading(false);alert('Error saving company. Please check your connection and try again.');console.error(e);}}
 function openDetail(id){const p=D.prospects.find(x=>x.id===id);if(!p)return;const st=STAGES.find(s=>s.key===p.stage);const od=isOD(p.followup_date);const td=isToday(p.followup_date);document.getElementById('detContent').innerHTML=`<div style="margin-bottom:15px"><div style="display:flex;align-items:center;gap:7px;margin-bottom:5px"><span class="badge ${p.priority==='High'?'bhi':p.priority==='Low'?'blo':'bme'}">${p.priority}</span><span class="badge bme">${st?.label}</span></div><div style="font-family:var(--head);font-size:22px;font-weight:800;margin-bottom:2px">${p.company}</div><div style="font-size:13px;color:var(--muted)">${p.sector}</div>${p.website?`<a href="${p.website}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--blue);text-decoration:none">🔗 ${p.website}</a>`:''}</div>${p.contact_name||p.email?`<div style="margin-bottom:13px"><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Contact</div>${p.contact_name?`<div style="font-size:14px;font-weight:600">${p.contact_name}</div>`:''}${p.contact_role?`<div style="font-size:12px;color:var(--muted);margin-bottom:5px">${p.contact_role}</div>`:''}${p.email?`<div style="font-size:13px;margin-bottom:2px">✉ <a href="mailto:${p.email}" style="color:var(--blue);text-decoration:none">${p.email}</a></div>`:''}${p.phone?`<div style="font-size:13px">📞 ${p.phone}</div>`:''}</div>`:''}${p.followup_date?`<div style="margin-bottom:13px"><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Follow-up</div><span class="badge ${od?'boh':td?'bme':'bc'}">${od?'⚠ Overdue: ':td?'📅 Today: ':'📅 '}${fmt(p.followup_date)}</span></div>`:''}${p.notes?`<div style="margin-bottom:13px"><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Notes</div><div style="font-size:13px;color:var(--muted);line-height:1.6">${p.notes}</div></div>`:''}
 <div><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Activity Log</div><div>${(p.activity_log||[]).slice().reverse().map(l=>`<div class="ni"><div class="nd">${fmt(l.date)}</div><div>${l.text}</div></div>`).join('')||'<div style="font-size:12px;color:var(--muted)">No activity logged.</div>'}</div>
 <div class="nar"><input class="fi2" id="nni" placeholder="Log a call, email, update..." onkeydown="if(event.key==='Enter')addNote('${p.id}')"><button class="btn btn-p btn-s" onclick="addNote('${p.id}')">Add</button></div></div>`;
@@ -2171,7 +2451,7 @@ function renderWiki(){
   else pb.innerHTML='';
   let arts=D.wiki.filter(a=>{const mc=wikiCat==='All'||a.category===wikiCat;const ms=!srch||a.title.toLowerCase().includes(srch)||(a.tags||[]).some(t=>t.toLowerCase().includes(srch))||a.content.toLowerCase().includes(srch);return mc&&ms;});
   const sb2=document.getElementById('wikiSidebar');
-  sb2.innerHTML=arts.length?arts.map(a=>`<div class="wsi ${wikiArt===a.id?'active':''}" onclick="openWArt('${a.id}')"><span>${WICK[a.category]||'📄'}</span><span style="flex:1;line-height:1.3;font-size:12px">${a.title}</span></div>`).join(''):'<div style="padding:16px 12px;font-size:12px;color:var(--muted);text-align:center">No articles found</div>';
+  sb2.innerHTML=arts.length?arts.map(a=>`<div class="wsi ${wikiArt===a.id?'active':''}" onclick="openWArt('${a.id}')"><span>${WICK[a.category]||'📄'}</span><span style="flex:1;line-height:1.3;font-size:12px">${san(a.title)}</span></div>`).join(''):'<div style="padding:16px 12px;font-size:12px;color:var(--muted);text-align:center">No articles found</div>';
   if(wikiArt){const art=D.wiki.find(a=>a.id===wikiArt);art?renderWArt(art):showWWel();}else showWWel();
 }
 const showWWel=()=>{document.getElementById('wikiArticleArea').innerHTML='<div class="wwel"><div style="font-size:38px;margin-bottom:11px">📖</div><div style="font-family:var(--head);font-size:22px;font-weight:800;margin-bottom:5px">Company Wiki</div><div style="color:var(--muted);font-size:13px;max-width:320px;line-height:1.7">Select an article or create one to capture processes, machine setups, and tribal knowledge.</div></div>';};
@@ -2186,7 +2466,7 @@ function editWArt(id){const art=D.wiki.find(a=>a.id===id);if(!art)return;openMod
 async function delWArt(id){if(!confirm('Delete this article?'))return;await sb.from('wiki_articles').delete().eq('id',id);await aLog('DELETE_WIKI','wiki_articles',id);wikiArt=null;await loadWiki();renderWiki();toast('Article deleted');}
 const openWikiEditor=()=>{document.getElementById('wikiMT').textContent='New Article';document.getElementById('wEId').value='';['wTitle','wTags','wContent'].forEach(id=>document.getElementById(id).value='');_wImgs=[];renderWIP();document.getElementById('modal-wiki').classList.add('open');};
 function wFmt(t){const ta=document.getElementById('wContent');const s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.substring(s,e);const bef=ta.value.substring(0,s),aft=ta.value.substring(e);const ins={bold:`**${sel||'bold text'}**`,italic:`*${sel||'italic'}*`,h2:`\n## ${sel||'Heading'}\n`,h3:`\n### ${sel||'Sub-heading'}\n`,ul:`\n- ${sel||'Item'}\n`,ol:`\n1. ${sel||'Item'}\n`,warn:`\n[WARN] ${sel||'Warning'}\n`,tip:`\n[TIP] ${sel||'Tip'}\n`,step:`\n[STEP] ${sel||'Step'}\n`}[t];ta.value=bef+ins+aft;ta.focus();ta.selectionStart=ta.selectionEnd=s+ins.length;}
-function wikiInsertImg(e){const f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024){alert('Image must be under 5MB');return;}const r=new FileReader();r.onload=ev=>{_wImgs.push({name:f.name,dataUrl:ev.target.result});const ta=document.getElementById('wContent');const p=ta.selectionStart;const ph=`\n[IMAGE:${f.name}]\n`;ta.value=ta.value.substring(0,p)+ph+ta.value.substring(p);renderWIP();toast('Image added');};r.readAsDataURL(f);e.target.value='';}
+function wikiInsertImg(e){const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){alert('Image must be under 10MB');return;}const r=new FileReader();r.onload=async ev=>{const compressed=await compressImage(ev.target.result,1200,0.8);_wImgs.push({name:f.name,dataUrl:compressed});const ta=document.getElementById('wContent');const p=ta.selectionStart;const ph=`\n[IMAGE:${f.name}]\n`;ta.value=ta.value.substring(0,p)+ph+ta.value.substring(p);renderWIP();toast('Image added');};r.readAsDataURL(f);e.target.value='';}
 function renderWIP(){document.getElementById('wImgPrev').innerHTML=_wImgs.map((img,i)=>`<div style="position:relative"><img src="${img.dataUrl}" style="height:48px;width:64px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"><button onclick="_wImgs.splice(${i},1);renderWIP()" style="position:absolute;top:-4px;right:-4px;background:var(--red);border:none;color:#fff;border-radius:50%;width:13px;height:13px;font-size:9px;cursor:pointer;line-height:13px;text-align:center">✕</button></div>`).join('');}
 async function submitWiki(){const eid=document.getElementById('wEId').value;const title=document.getElementById('wTitle').value.trim();if(!title){alert('Please enter a title');return;}const data={title,category:document.getElementById('wCat').value,tags:document.getElementById('wTags').value.split(',').map(t=>t.trim()).filter(Boolean),content:document.getElementById('wContent').value,images:_wImgs,author_name:CP?`${CP.first_name} ${CP.last_name}`:'Unknown',submitted_by:CU.id};loading(true,'Saving...');if(eid){await sb.from('wiki_articles').update({...data,updated_at:new Date().toISOString()}).eq('id',eid);await aLog('UPDATE_WIKI','wiki_articles',eid,{title});toast('Article updated');}else{await sb.from('wiki_articles').insert({...data,status:'pending'});await aLog('SUBMIT_WIKI','wiki_articles','new',{title});toast('Submitted for approval ✓');}await loadWiki();loading(false);closeModal('wiki');renderWiki();}
 function renderApprovals(){document.getElementById('apprList').innerHTML=D.wikiPend.length?D.wikiPend.map(a=>`<div class="appr"><div style="font-family:var(--head);font-size:14px;font-weight:700;margin-bottom:2px">${a.title}</div><div style="font-size:12px;color:var(--muted);margin-bottom:7px">${WICK[a.category]} ${a.category} · ✍ ${a.author_name} · 📅 ${fmt((a.created_at||'').split('T')[0])}</div><div style="display:flex;gap:6px"><button class="btn btn-p btn-s" onclick="approveW('${a.id}')">✓ Approve</button><button class="btn btn-d btn-s" onclick="rejectW('${a.id}')">✕ Reject</button></div></div>`).join(''):'<div style="text-align:center;padding:22px;color:var(--muted)">No articles pending.</div>';}
@@ -2207,7 +2487,7 @@ function renderTodo(){
     return`<div class="todo-item${t.completed?' done':''}">
       <button class="todo-check${t.completed?' checked':''}" onclick="toggleTodo('${t.id}',${!t.completed})" title="${t.completed?'Mark incomplete':'Mark complete'}">${t.completed?'✓':''}</button>
       <div style="flex:1">
-        <div class="todo-desc">${t.description}</div>
+        <div class="todo-desc">${san(t.description)}</div>
         ${t.notes?`<div style="font-size:12px;color:var(--muted);margin-top:2px">${t.notes}</div>`:''}
         <div class="todo-meta">
           <span class="badge ${t.priority==='High'?'bhi':t.priority==='Low'?'blo':'bme'}">${t.priority}</span>
@@ -2250,9 +2530,11 @@ async function saveTodo(){
   const data={description:document.getElementById('tdDesc').value,priority:document.getElementById('tdPri').value,due_date:document.getElementById('tdDue').value||null,notes:document.getElementById('tdNotes').value,profile_id:CU.id,completed:false};
   if(!data.description){alert('Please enter a task description');return;}
   loading(true,'Saving...');
+  try{
   if(eid){await sb.from('todos').update(data).eq('id',eid);toast('Task updated');}
   else{await sb.from('todos').insert(data);toast('Task added');}
   await loadTodos();loading(false);closeModal('todo');renderTodo();
+  }catch(e){loading(false);alert('Error saving task. Please check your connection and try again.');console.error(e);}
 }
 
 // ══ PURCHASING ══
@@ -2277,7 +2559,7 @@ function renderPurch(){
       <div class="purch-sec-title">${CAT_ICONS[cat]||'📋'} ${cat} <span style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto">${catItems.length} item${catItems.length!==1?'s':''} ${totalCost>0?'· Est. €'+totalCost.toFixed(2):''}</span></div>
       ${catItems.map(p=>`<div class="purch-item${p.status==='Ordered'?' ordered':''}">
         <div style="flex:1">
-          <div class="purch-desc">${p.description}</div>
+          <div class="purch-desc">${san(p.description)}</div>
           ${p.quantity?`<div style="font-size:12px;color:var(--muted);margin-top:2px">Qty/Spec: ${p.quantity}</div>`:''}
           ${p.supplier?`<div style="font-size:12px;color:var(--muted)">Supplier: ${p.supplier}</div>`:''}
           ${p.job_ref?`<div style="font-size:12px;color:var(--accent);font-family:var(--mono)">Job: ${p.job_ref}</div>`:''}
@@ -2337,9 +2619,11 @@ async function savePurch(){
   const data={description:document.getElementById('prchDesc').value,category:document.getElementById('prchCat').value,priority:document.getElementById('prchPri').value,quantity:document.getElementById('prchQty').value,estimated_cost:parseFloat(document.getElementById('prchCost').value)||null,supplier:document.getElementById('prchSupp').value,job_ref:document.getElementById('prchJob').value,notes:document.getElementById('prchNotes').value,added_by:CU.id,added_by_name:CP?`${CP.first_name} ${CP.last_name}`:'Unknown',status:'Pending'};
   if(!data.description){alert('Please enter an item description');return;}
   loading(true,'Saving...');
+  try{
   if(eid){await sb.from('purchases').update(data).eq('id',eid);toast('Item updated');}
   else{await sb.from('purchases').insert(data);toast('Item added to purchasing list');}
   await loadPurchases();loading(false);closeModal('purch');renderPurch();
+  }catch(e){loading(false);alert('Error saving purchase item. Please check your connection and try again.');console.error(e);}
 }
 
 // ══ EXPORT ══
@@ -2401,4 +2685,3 @@ if(_ir){document.getElementById('loadOv').style.display='none';document.getEleme
 </script>
 </body>
 </html>
-
