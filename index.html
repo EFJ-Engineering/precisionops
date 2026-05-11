@@ -460,27 +460,6 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
       <button class="btn btn-p" style="width:100%;justify-content:center" onclick="setNewPw()">Set New Password</button>
     </div>
 
-    <!-- MFA VERIFY SCREEN -->
-    <div id="mfaVerify" style="display:none">
-      <div class="auth-title">Two-Factor Authentication</div>
-      <div class="auth-err" id="mfaErr"></div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6">Open your authenticator app (Google Authenticator, Authy etc.) and enter the 6-digit code for PrecisionOps.</div>
-      <div class="fg"><label class="fl">Authentication Code</label><input class="fi2" id="mfaCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onkeydown="if(event.key==='Enter')verifyMfa()"></div>
-      <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:4px" onclick="verifyMfa()">Verify</button>
-      <div class="auth-sw"><button class="auth-lnk" onclick="showF('lf');sb.auth.signOut()">Cancel and sign out</button></div>
-    </div>
-
-    <!-- MFA SETUP SCREEN -->
-    <div id="mfaSetup" style="display:none">
-      <div class="auth-title">Set Up Two-Factor Auth</div>
-      <div class="auth-err" id="mfaSetupErr"></div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">Scan this QR code with Google Authenticator, Authy, or any TOTP authenticator app. Then enter the 6-digit code to confirm.</div>
-      <div id="mfaQrCode" style="text-align:center;margin-bottom:14px"></div>
-      <div id="mfaSecret" style="font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center;margin-bottom:14px;word-break:break-all;background:var(--surface2);padding:8px;border-radius:4px"></div>
-      <div class="fg"><label class="fl">Enter the 6-digit code to confirm setup</label><input class="fi2" id="mfaSetupCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" onkeydown="if(event.key==='Enter')confirmMfaSetup()"></div>
-      <button class="btn btn-p" style="width:100%;justify-content:center;margin-top:4px" onclick="confirmMfaSetup()">Enable 2FA</button>
-      <div class="auth-sw"><button class="auth-lnk" onclick="skipMfaSetup()">Skip for now</button></div>
-    </div>
   </div>
 </div>
 
@@ -746,11 +725,7 @@ body.light .load-ov{background:rgba(240,242,245,.85);}
           </div>
           <button class="btn btn-p" onclick="saveSettings()">Save Settings</button>
         </div>
-        <div class="card">
-          <div style="font-family:var(--head);font-size:15px;font-weight:700;margin-bottom:12px">Security</div>
-          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">Two-factor authentication adds a second layer of security to your account. After enabling, you will need your authenticator app each time you sign in.</div>
-          <div id="mfaStatusArea" style="margin-bottom:14px"></div>
-          <button class="btn btn-g" onclick="manageMfa()">🔐 Manage Two-Factor Authentication</button>
+
         </div>
       </div>
     </div>
@@ -1127,7 +1102,6 @@ let CU=null,CP=null;
 let D={staff:[],machines:[],jobs:[],lineItems:{},schedule:[],projects:[],projMembers:{},projImages:{},wiki:[],wikiPend:[],prospects:[],jobCards:[],jobAssignees:{},pendingUsers:[],todos:[],purchases:[],notifications:[]};
 let weekOff=0,wikiCat='All',wikiArt=null,wikiImgs=[],lineItems=[],liCtr=0,jobView='cards',projImgsNew=[];
 let _jobAssignees=[]; // multi-assign for current job modal
-let _inMfaFlow=false; // prevents bootstrapApp firing during MFA setup
 let todoFilter='all', purchCat='all';
 let _schedRenderTimer=null;
 const renderSchedDebounced=()=>{clearTimeout(_schedRenderTimer);_schedRenderTimer=setTimeout(renderSched,80);};
@@ -1311,121 +1285,24 @@ async function signIn(){
     if(window.hcaptcha)window.hcaptcha.reset();
     return;}
   CU=data.user;
-  // Check if MFA verification is required
-  try{
-    const{data:aalData}=await sb.auth.mfa.getAuthenticatorAssuranceLevel();
-    if(aalData?.nextLevel==='aal2'&&aalData?.currentLevel!=='aal2'){
-      _inMfaFlow=true;
-      loading(false);
-      document.getElementById('authScreen').style.display='flex';
-      document.getElementById('appShell').style.display='none';
-      showF('mfaVerify');
-      document.getElementById('mfaCode').focus();
-      return;
-    }
-  }catch(e){}
-  window._freshLogin=true;
   await bootstrapApp();}
 async function signUp(){const f=document.getElementById('suf').value.trim(),l=document.getElementById('sul').value.trim(),em=document.getElementById('suem').value.trim(),pw=document.getElementById('supw').value,pw2=document.getElementById('supw2').value,r=document.getElementById('sur').value.trim(),el=document.getElementById('sue'),ok=document.getElementById('suo');el.style.display='none';ok.style.display='none';if(!f||!l||!em||!pw){el.textContent='Please fill in all fields.';el.style.display='block';return;}if(!em.toLowerCase().endsWith('@efj.ie')){el.textContent='Sign-up is restricted to @efj.ie email addresses only. Contact your manager if you need access.';el.style.display='block';return;}if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Creating account...');const{data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{first_name:f,last_name:l,role:'user'}}});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}if(data.user){const{count}=await sb.from('profiles').select('*',{count:'exact',head:true});const isFirst=(count===0||count===null);const role=isFirst?'manager':'user';const uStatus=isFirst?'active':'pending';await sb.from('profiles').upsert({id:data.user.id,first_name:f,last_name:l,role,job_title:r,status:uStatus});if(isFirst){ok.textContent='Account created as manager. You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}else{ok.textContent='Application submitted! A manager will review your account request before you can log in.';ok.style.display='block';['suf','sul','suem','supw','supw2','sur'].forEach(id=>document.getElementById(id).value='');}}else{ok.textContent='Account created! You can now sign in.';ok.style.display='block';setTimeout(()=>showF('lf'),2000);}
 }
 async function sendReset(){const em=document.getElementById('fgtem').value.trim(),el=document.getElementById('fgte'),ok=document.getElementById('fgto');el.style.display='none';ok.style.display='none';if(!em){el.textContent='Please enter your email.';el.style.display='block';return;}const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:'https://efj-engineering.github.io/precisionops/'});if(error){el.textContent=error.message;el.style.display='block';}else{ok.textContent='Reset link sent. Check your inbox and spam folder.';ok.style.display='block';}}
 async function setNewPw(){const pw=document.getElementById('rppw').value,pw2=document.getElementById('rppw2').value,el=document.getElementById('rpe'),ok=document.getElementById('rpo');el.style.display='none';ok.style.display='none';if(pw.length<8){el.textContent='Password must be at least 8 characters.';el.style.display='block';return;}if(pw!==pw2){el.textContent='Passwords do not match.';el.style.display='block';return;}loading(true,'Updating password...');if(window._rt)await sb.auth.setSession({access_token:window._rt,refresh_token:window._rr||''});const{error}=await sb.auth.updateUser({password:pw});loading(false);if(error){el.textContent=error.message;el.style.display='block';return;}ok.textContent='Password updated! Signing you in...';ok.style.display='block';window._rt=null;window._rr=null;setTimeout(async()=>{const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else showF('lf');},2000);}
 async function signOut(){await aLog('SIGN_OUT');await sb.auth.signOut();}
-sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT'){_inMfaFlow=false;CU=null;CP=null;document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';loading(false);}else if(e==='TOKEN_REFRESHED'&&s){CU=s.user;}});
-document.addEventListener('visibilitychange',async()=>{if(!_inMfaFlow&&document.visibilityState==='visible'&&document.getElementById('loadOv').style.display==='flex'){const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else{loading(false);document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';}}});
+sb.auth.onAuthStateChange(async(e,s)=>{if(e==='SIGNED_OUT'){CU=null;CP=null;document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';loading(false);}else if(e==='TOKEN_REFRESHED'&&s){CU=s.user;}});
+document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&document.getElementById('loadOv').style.display==='flex'){const{data:{session}}=await sb.auth.getSession();if(session){CU=session.user;await bootstrapApp();}else{loading(false);document.getElementById('authScreen').style.display='flex';document.getElementById('appShell').style.display='none';}}});
 const startBsTimeout=()=>{clearTimeout(bsTimeout);bsTimeout=setTimeout(()=>{if(document.getElementById('loadOv').style.display!=='none'){loading(false);if(document.getElementById('appShell').style.display==='none')document.getElementById('authScreen').style.display='flex';}},15000);};
 
 // ══ BOOTSTRAP ══
 // ══ MFA / 2FA FUNCTIONS ══
-let _mfaFactorId=null;
 
-async function verifyMfa(){
-  const code=document.getElementById('mfaCode').value.trim();
-  const el=document.getElementById('mfaErr');
-  el.style.display='none';
-  if(code.length!==6){el.textContent='Please enter the 6-digit code.';el.style.display='block';return;}
-  loading(true,'Verifying...');
-  try{
-    // Get the TOTP factor
-    const{data:factors}=await sb.auth.mfa.listFactors();
-    const totpFactor=factors?.totp?.[0];
-    if(!totpFactor){loading(false);el.textContent='No 2FA factor found. Please sign in again.';el.style.display='block';return;}
-    // Create challenge and verify
-    const{data:challenge,error:cErr}=await sb.auth.mfa.challenge({factorId:totpFactor.id});
-    if(cErr){loading(false);el.textContent=cErr.message;el.style.display='block';return;}
-    const{data,error}=await sb.auth.mfa.verify({factorId:totpFactor.id,challengeId:challenge.id,code});
-    if(error){loading(false);el.textContent='Invalid code. Please try again.';el.style.display='block';if(window.turnstile)window.turnstile.reset();return;}
-    _inMfaFlow=false;
-    CU=data.user;
-    await bootstrapApp();
-  }catch(e){loading(false);el.textContent='Verification failed. Please try again.';el.style.display='block';console.error(e);}
-}
 
-async function initMfaSetup(){
-  // Called after first successful login to offer MFA setup
-  try{
-    const{data:factors}=await sb.auth.mfa.listFactors();
-    if(factors?.totp?.length>0){
-      // Already has MFA - skip setup
-      await bootstrapApp();return;
-    }
-    // Enroll a new TOTP factor
-    const{data,error}=await sb.auth.mfa.enroll({factorType:'totp',issuer:'PrecisionOps',friendlyName:`${CP?.first_name||'User'}'s Authenticator`});
-    if(error){console.warn('MFA enroll error:',error);await bootstrapApp();return;}
-    _mfaFactorId=data.id;
-    // Show QR code
-    document.getElementById('mfaQrCode').innerHTML=`<img src="${data.totp.qr_code}" style="width:180px;height:180px;border-radius:8px;border:3px solid var(--accent)">`;
-    document.getElementById('mfaSecret').textContent=`Manual entry: ${data.totp.secret}`;
-    loading(false);
-    _inMfaFlow=true;
-    document.getElementById('authScreen').style.display='flex';
-    document.getElementById('appShell').style.display='none';
-    showF('mfaSetup');
-  }catch(e){console.warn('MFA setup error:',e);await bootstrapApp();}
-}
 
-async function confirmMfaSetup(){
-  const code=document.getElementById('mfaSetupCode').value.trim();
-  const el=document.getElementById('mfaSetupErr');
-  el.style.display='none';
-  if(code.length!==6){el.textContent='Please enter the 6-digit code from your app.';el.style.display='block';return;}
-  if(!_mfaFactorId){el.textContent='Setup session expired. Please sign in again.';el.style.display='block';return;}
-  loading(true,'Enabling 2FA...');
-  try{
-    const{data:challenge,error:cErr}=await sb.auth.mfa.challenge({factorId:_mfaFactorId});
-    if(cErr){loading(false);el.textContent=cErr.message;el.style.display='block';return;}
-    const{error}=await sb.auth.mfa.verify({factorId:_mfaFactorId,challengeId:challenge.id,code});
-    if(error){loading(false);el.textContent='Invalid code — please check your authenticator app and try again.';el.style.display='block';return;}
-    _inMfaFlow=false;
-    loading(false);
-    toast('✓ Two-factor authentication enabled successfully');
-    await bootstrapApp();
-  }catch(e){loading(false);el.textContent='Setup failed. Please try again.';el.style.display='block';console.error(e);}
-}
 
-async function skipMfaSetup(){
-  _inMfaFlow=false;
-  if(_mfaFactorId){await sb.auth.mfa.unenroll({factorId:_mfaFactorId}).catch(()=>{});}
-  _mfaFactorId=null;
-  await bootstrapApp();
-}
 
-async function manageMfa(){
-  // Called from settings - allow user to enable/disable MFA
-  try{
-    const{data:factors}=await sb.auth.mfa.listFactors();
-    const hasMfa=factors?.totp?.length>0;
-    if(hasMfa){
-      if(confirm('Two-factor authentication is currently enabled.\n\nDo you want to disable it?')){
-        await sb.auth.mfa.unenroll({factorId:factors.totp[0].id});
-        toast('2FA disabled');renderSettings();
-      }
-    }else{
-      // Re-authenticate to set up MFA from settings
-      await initMfaSetup();
-    }
-  }catch(e){alert('Could not manage 2FA. Please try again.');console.error(e);}
-}
+
 
 // ══ SAFE SCHEMA MIGRATIONS ══
 // Runs on every load but only creates missing structures — never drops data
@@ -1446,22 +1323,11 @@ async function bootstrapApp(){loading(true,'Loading your workspace...');startBsT
   // Safe schema check — only runs if tables exist, never drops data
   await runSchemaMigrations().catch(e=>console.warn('Migration skipped:',e));const{data:prof}=await sb.from('profiles').select('*').eq('id',CU.id).single();CP=prof||{id:CU.id,first_name:CU.user_metadata?.first_name||CU.email.split('@')[0],last_name:CU.user_metadata?.last_name||'',role:'user',status:'pending'};if(!prof)await sb.from('profiles').upsert({id:CU.id,first_name:CP.first_name,last_name:CP.last_name,role:'user',status:'pending'}).catch(()=>{});
     // Block pending users
+    // Ensure status defaults to active if not set (backwards compat)
+    if(!CP.status)CP.status='active';
     if(CP.status==='pending'){clearTimeout(bsTimeout);loading(false);document.getElementById('authScreen').style.display='flex';showF('lf');document.getElementById('le').textContent='Your account is pending approval by a manager. You will be notified when access is granted.';document.getElementById('le').style.display='block';await sb.auth.signOut();return;}
     if(CP.status==='rejected'){clearTimeout(bsTimeout);loading(false);document.getElementById('authScreen').style.display='flex';showF('lf');document.getElementById('le').textContent='Your account application was not approved. Please contact your manager.';document.getElementById('le').style.display='block';await sb.auth.signOut();return;}document.getElementById('hdrAv').textContent=ini(CP.first_name,CP.last_name);document.getElementById('hdrNm').textContent=`${CP.first_name} ${CP.last_name}`.trim()||CU.email;document.getElementById('hdrRole').textContent=CP.role||'user';const mgr=isMgr(),sr=isSr();document.getElementById('navSales').style.display=sr?'':'none';document.getElementById('navExport').style.display=sr?'':'none';document.getElementById('navSettings').style.display=mgr?'':'none';document.getElementById('navAudit').style.display=mgr?'':'none';const holBtn=document.getElementById('btnHol');if(holBtn)holBtn.style.display=mgr?'':'none';await Promise.allSettled([loadStaff(),loadMachines(),loadJobs(),loadSched(),loadProjects(),loadWiki()]);if(sr)await loadProspects().catch(()=>{});if(sr)await loadJobCards().catch(()=>{});if(mgr)await loadPendingUsers().catch(()=>{});await Promise.allSettled([loadNotifications(),loadHolidays(),loadTodos(),loadPurchases()]);await loadSettings();clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);renderDash();document.getElementById('dashDate').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});aLog('SIGN_IN').catch(()=>{});
-    // Offer MFA setup if not already enrolled on fresh login
-    if(window._freshLogin){
-      window._freshLogin=false;
-      try{
-        const{data:factors}=await sb.auth.mfa.listFactors();
-        if(!factors?.totp?.length){
-          setTimeout(()=>{
-            if(confirm('🔐 Secure your account with Two-Factor Authentication?\n\nThis takes 2 minutes and significantly improves security. You\'ll need Google Authenticator or Authy on your phone.\n\nSet up now?')){
-              initMfaSetup();
-            }
-          },1500);
-        }
-      }catch(e){}
-    }}catch(err){console.error('Bootstrap error:',err);clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);try{renderDash();}catch(e){}}}
+}catch(err){console.error('Bootstrap error:',err);clearTimeout(bsTimeout);document.getElementById('authScreen').style.display='none';document.getElementById('appShell').style.display='flex';loading(false);try{renderDash();}catch(e){}}}
 
 // ══ LOADERS ══
 async function loadStaff(){const{data}=await sb.from('staff').select('*').order('first_name');D.staff=data||[];populateSels();}
@@ -1545,23 +1411,15 @@ async function loadAuditLog(){const{data}=await sb.from('audit_log').select('*')
 // ══ TABS ══
 function showTab(n,e){
   // Re-verify user is still active on every tab switch
-  if(CP&&CP.status&&CP.status!=='active'){signOut();return;}
+  // Only sign out if status is explicitly 'pending' or 'rejected' - not if undefined
+  if(CP&&(CP.status==='pending'||CP.status==='rejected')){signOut();return;}
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+n).classList.add('active');
   if(e?.currentTarget)e.currentTarget.classList.add('active');const r={dash:renderDash,jobs:renderJobs,sched:()=>{loadHolidays().then(()=>renderSched());},proj:renderProjects,mach:renderMachines,wiki:renderWiki,sales:renderSales,staff:renderStaff,todo:renderTodo,purch:renderPurch,export:()=>{renderJobCards();},settings:renderSettings,audit:loadAuditLog};r[n]?.();}
 
 // ══ SETTINGS ══
-async function renderSettings(){
-  try{
-    const{data:factors}=await sb.auth.mfa.listFactors();
-    const hasMfa=factors?.totp?.length>0;
-    const el=document.getElementById('mfaStatusArea');
-    if(el)el.innerHTML=hasMfa
-      ?`<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3);border-radius:6px;font-size:13px"><span style="color:var(--green)">✓</span><span style="color:var(--green);font-weight:600">Two-factor authentication is enabled</span></div>`
-      :`<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.25);border-radius:6px;font-size:13px"><span style="color:var(--accent)">⚠</span><span style="color:var(--accent)">Two-factor authentication is not enabled</span></div>`;
-  }catch(e){}
-}
+function renderSettings(){}
 
 // ══ DASHBOARD ══
 function renderDash(){
