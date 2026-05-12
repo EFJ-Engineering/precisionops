@@ -1179,7 +1179,7 @@ function compressImage(dataUrl, maxWidth=800, quality=0.75){
 // XSS sanitisation - strip HTML tags from user input before rendering
 const san=s=>{if(!s)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;};
 const isDSoon=(s,d=7)=>{if(!s)return false;const dt=new Date(s+'T00:00:00');const n=new Date();const e=new Date();e.setDate(e.getDate()+d);return dt>=n&&dt<=e;};
-const isToday=s=>{if(!s)return false;return s===new Date().toISOString().split('T')[0];};
+const isToday=s=>{if(!s)return false;return s===todayStr();};
 const slug=s=>(s||'').toLowerCase().replace(/[\s\/]+/g,'-').replace(/[^a-z0-9-]/g,'');
 const ini=(f,l)=>((f||'')[0]||'').toUpperCase()+((l||'')[0]||'').toUpperCase();
 const COLS=['#f0a500','#3b82f6','#2ecc71','#e05c2a','#8b5cf6','#e74c3c','#06b6d4','#ec4899'];
@@ -1349,7 +1349,18 @@ async function loadJobs(append=false){
   await loadJobAssignees();
 }
 async function loadMoreJobs(){jobsPage++;await loadJobs(true);renderJobs();}
-async function loadJobAssignees(){try{const{data}=await sb.from('job_assignees').select('*');D.jobAssignees={};(data||[]).forEach(r=>{if(!D.jobAssignees[r.job_id])D.jobAssignees[r.job_id]=[];D.jobAssignees[r.job_id].push(r.profile_id);});}catch(e){D.jobAssignees={};}}
+async function loadJobAssignees(){
+  try{
+    const{data}=await sb.from('job_assignees').select('*');
+    D.jobAssignees={};
+    (data||[]).forEach(r=>{
+      if(!D.jobAssignees[r.job_id])D.jobAssignees[r.job_id]=[];
+      // Store both staff_id and profile_id for flexible matching
+      if(r.staff_id&&!D.jobAssignees[r.job_id].includes(r.staff_id))D.jobAssignees[r.job_id].push(r.staff_id);
+      if(r.profile_id&&!D.jobAssignees[r.job_id].includes(r.profile_id))D.jobAssignees[r.job_id].push(r.profile_id);
+    });
+  }catch(e){D.jobAssignees={};}
+}
 async function loadLineItems(jid){const{data}=await sb.from('job_line_items').select('*').eq('job_id',jid).order('line_number');return data||[];}
 async function loadSched(){const{data}=await sb.from('schedule').select('*');D.schedule=data||[];}
 async function loadProjects(){
@@ -1383,7 +1394,7 @@ async function addHolidayRange(){
   if(from>to){alert('From date must be before To date');return;}
   // Add a schedule entry for each working day in the range
   const entries=[];let d=new Date(from+'T00:00:00');const end=new Date(to+'T00:00:00');
-  while(d<=end){const dow=d.getDay();if(dow!==0&&dow!==6){entries.push({staff_id:sid,date:d.toISOString().split('T')[0],type:'leave',hours:8,note,created_by:CU.id});}d.setDate(d.getDate()+1);}
+  while(d<=end){const dow=d.getDay();if(dow!==0&&dow!==6){entries.push({staff_id:sid,date:fmtD(d),type:'leave',hours:8,note,created_by:CU.id});}d.setDate(d.getDate()+1);}
   if(!entries.length){alert('No working days in selected range');return;}
   loading(true,'Adding holidays...');
   try{
@@ -1404,7 +1415,7 @@ function renderHolidayList(){
   const byStaff={};upcoming.forEach(h=>{const nm=sNm(h.staff_id);if(!byStaff[nm])byStaff[nm]=[];byStaff[nm].push(h);});
   el.innerHTML=Object.entries(byStaff).map(([nm,entries])=>`<div style="margin-bottom:10px"><div style="font-weight:600;font-size:13px;margin-bottom:5px">${nm}</div>${entries.reduce((acc,h,i,arr)=>{if(i===0||h.date!==addOneDayStr(arr[i-1].date)){acc.push({start:h.date,end:h.date,note:h.note,id:h.id});}else{acc[acc.length-1].end=h.date;}return acc;},[]).map(r=>`<div style="display:flex;align-items:center;gap:9px;font-size:12px;padding:5px 9px;background:var(--surface2);border-radius:4px;margin-bottom:3px"><span style="color:var(--red)">🏖</span><span style="flex:1">${fmt(r.start)}${r.start!==r.end?' → '+fmt(r.end):''} · ${r.note}</span><button class="btn btn-d btn-s" onclick="deleteHolidayRange('${r.id}','${nm}','${r.start}','${r.end}')">Del</button></div>`).join('')}</div>`).join('');
 }
-function addOneDayStr(ds){const d=new Date(ds+'T00:00:00');d.setDate(d.getDate()+1);return d.toISOString().split('T')[0];}
+function addOneDayStr(ds){const d=new Date(ds+'T00:00:00');d.setDate(d.getDate()+1);return fmtD(d);}
 async function deleteHolidayRange(id,staffName,from,to){
   if(!confirm(`Delete all leave entries for ${staffName} from ${fmt(from)} to ${fmt(to)}?`))return;
   // Delete all leave entries for this staff in this range
@@ -1554,7 +1565,7 @@ function openJobModal(editId=null){
   const jMachine=document.getElementById('jMachine');
   if(jMachine)jMachine.innerHTML='<option value="">— No machine —</option>'+D.machines.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
   const nm=new Date();const day=nm.getDay();nm.setDate(nm.getDate()+(day===0?1:8-day));
-  document.getElementById('jSchedWk').value=nm.toISOString().split('T')[0];
+  document.getElementById('jSchedWk').value=fmtD(nm);
   renderLI();
   document.getElementById('modal-job').classList.add('open');
 }
@@ -1600,7 +1611,14 @@ function renderJobs(){
   const hideCompleted=document.getElementById('hideCompleted')?.checked;
   let allJobs=filter?D.jobs.filter(j=>j.status===filter):D.jobs;
   if(hideCompleted)allJobs=allJobs.filter(j=>j.status!=='Complete');
-  const jobs=isUser()&&!isSr()?allJobs.filter(j=>{const assigned=D.jobAssignees[j.id]||[];return assigned.includes(CU.id)||j.assigned_staff_id===CU.id||assigned.some(uid=>D.staff.find(s=>s.id===uid&&s.profile_id===CU.id));
+  const jobs=isUser()&&!isSr()?allJobs.filter(j=>{
+    const assigned=D.jobAssignees[j.id]||[];
+    const myStaff=D.staff.find(s=>s.profile_id===CU.id);
+    const myStaffId=myStaff?.id;
+    return assigned.includes(CU.id)||
+           assigned.includes(myStaffId)||
+           j.assigned_staff_id===myStaffId||
+           j.assigned_staff_id===CU.id;
   }):allJobs;
   const c=document.getElementById('jobsContainer');
   if(jobView==='board'){renderProdBoard(jobs,canEdit);return;}
@@ -1724,7 +1742,7 @@ async function quickStatus(id,val){
   if(val==='Complete'){
     // Show completion modal
     document.getElementById('complJobId').value=id;
-    document.getElementById('complDate').value=new Date().toISOString().split('T')[0];
+    document.getElementById('complDate').value=todayStr();
     document.getElementById('complShip').value='';
     document.getElementById('complCourier').value='';
     document.getElementById('complTracking').value='';
@@ -1759,7 +1777,7 @@ async function quickInvoice(id,val){
 async function saveCompletion(){
   const id=document.getElementById('complJobId').value;
   const ship=document.getElementById('complShip').value;
-  const data={status:'Complete',progress:100,completed_date:document.getElementById('complDate').value||new Date().toISOString().split('T')[0],shipping_method:ship,courier_name:ship==='Courier'?document.getElementById('complCourier').value:'',tracking_number:ship==='Courier'?document.getElementById('complTracking').value:'',delivery_notes:document.getElementById('complDelivNotes').value,invoice_status:document.getElementById('complInvSt').value,invoice_number:document.getElementById('complInvNum').value,invoice_date:document.getElementById('complInvDate').value||null};
+  const data={status:'Complete',progress:100,completed_date:document.getElementById('complDate').value||todayStr(),shipping_method:ship,courier_name:ship==='Courier'?document.getElementById('complCourier').value:'',tracking_number:ship==='Courier'?document.getElementById('complTracking').value:'',delivery_notes:document.getElementById('complDelivNotes').value,invoice_status:document.getElementById('complInvSt').value,invoice_number:document.getElementById('complInvNum').value,invoice_date:document.getElementById('complInvDate').value||null};
   loading(true,'Saving...');
   try{
     await sb.from('jobs').update(data).eq('id',id);
@@ -1826,7 +1844,7 @@ async function autoSched(jobId,weekStart,jobNum,jobName){
   _liItems.forEach((li,i)=>{
     if(!li.assigned_staff_id)return;
     const d=new Date(start);d.setDate(d.getDate()+i%5);
-    entries.push({staff_id:li.assigned_staff_id,machine_id:li.machine_id||null,date:d.toISOString().split('T')[0],type:'production',hours:Math.max(1,Math.ceil(parseFloat(li.estimated_hours)||8)),note:`${jobNum} – ${li.description}`,created_by:CU.id});
+    entries.push({staff_id:li.assigned_staff_id,machine_id:li.machine_id||null,date:fmtD(d),type:'production',hours:Math.max(1,Math.ceil(parseFloat(li.estimated_hours)||8)),note:`${jobNum} – ${li.description}`,created_by:CU.id});
   });
   if(entries.length){
     try{
@@ -2197,7 +2215,12 @@ function getWkDays(){const m=getWkStart(schedWeekOff);return Array.from({length:
 const changeWeek=dir=>{schedWeekOff+=dir;renderSched();};
 const goToToday=()=>{schedGoToday();};
 
-function fmtD(d){return d.toISOString().split('T')[0];}
+function fmtD(d){
+  // Use local date parts - NOT toISOString() which converts to UTC and causes day shift in BST/IST
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+// Timezone-safe today string
+function todayStr(){return fmtD(new Date());}
 
 function getBirthdays(year,month){
   // Returns {dateStr: [name,...]}
@@ -2508,9 +2531,14 @@ function openStaffPanel(sid){
   // Check both legacy single-assign field AND new multi-assign table
   const assignedJobs=D.jobs.filter(j=>{
     if(j.status==='Complete')return false;
+    // Check multi-assign table (stores both staff_id and profile_id)
     const multiAssigned=(D.jobAssignees[j.id]||[]).includes(sid);
+    // Check legacy single-assign field on job record
     const singleAssigned=j.assigned_staff_id===sid;
-    return multiAssigned||singleAssigned;
+    // Check if staff member's profile_id matches any assignee
+    const staffProfile=D.staff.find(s=>s.id===sid)?.profile_id;
+    const profileAssigned=staffProfile&&(D.jobAssignees[j.id]||[]).includes(staffProfile);
+    return multiAssigned||singleAssigned||profileAssigned;
   });
   const projMem=D.projects.filter(p=>(D.projMembers[p.id]||[]).includes(sid)||p.owner_id===sid);
   const el=document.getElementById('staffPanelContent');
@@ -2598,7 +2626,7 @@ function renderSales(){
 async function quickStage(id,stage){
   if(!stage)return;
   const p=D.prospects.find(x=>x.id===id);if(!p)return;
-  const log=[...(p.activity_log||[]),{date:new Date().toISOString().split('T')[0],text:`Moved to: ${STAGES.find(s=>s.key===stage)?.label}`}];
+  const log=[...(p.activity_log||[]),{date:todayStr(),text:`Moved to: ${STAGES.find(s=>s.key===stage)?.label}`}];
   try{
     await sb.from('prospects').update({stage,activity_log:log}).eq('id',id);
     await loadProspects();renderSales();renderDash();toast('Stage updated');
@@ -2611,7 +2639,7 @@ function openDetail(id){const p=D.prospects.find(x=>x.id===id);if(!p)return;cons
 <div><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Activity Log</div><div>${(p.activity_log||[]).slice().reverse().map(l=>`<div class="ni"><div class="nd">${fmt(l.date)}</div><div>${l.text}</div></div>`).join('')||'<div style="font-size:12px;color:var(--muted)">No activity logged.</div>'}</div>
 <div class="nar"><input class="fi2" id="nni" placeholder="Log a call, email, update..." onkeydown="if(event.key==='Enter')addNote('${p.id}')"><button class="btn btn-p btn-s" onclick="addNote('${p.id}')">Add</button></div></div>`;
 document.getElementById('detPanel').classList.add('open');}
-async function addNote(id){const inp=document.getElementById('nni');const txt=inp.value.trim();if(!txt)return;const p=D.prospects.find(x=>x.id===id);if(!p)return;const log=[...(p.activity_log||[]),{date:new Date().toISOString().split('T')[0],text:txt}];try{await sb.from('prospects').update({activity_log:log}).eq('id',id);await loadProspects();inp.value='';openDetail(id);renderSales();toast('Note added');}catch(e){toast('Failed to save note');console.error(e);}}
+async function addNote(id){const inp=document.getElementById('nni');const txt=inp.value.trim();if(!txt)return;const p=D.prospects.find(x=>x.id===id);if(!p)return;const log=[...(p.activity_log||[]),{date:todayStr(),text:txt}];try{await sb.from('prospects').update({activity_log:log}).eq('id',id);await loadProspects();inp.value='';openDetail(id);renderSales();toast('Note added');}catch(e){toast('Failed to save note');console.error(e);}}
 const closeDetail=()=>document.getElementById('detPanel').classList.remove('open');
 
 // ══ WIKI ══
@@ -2697,7 +2725,7 @@ function renderTodo(){
 }
 
 async function toggleTodo(id,completed){
-  try{await sb.from('todos').update({completed,completed_date:completed?new Date().toISOString().split('T')[0]:null}).eq('id',id);await loadTodos();renderTodo();}catch(e){toast('Failed to update task');console.error(e);}
+  try{await sb.from('todos').update({completed,completed_date:completed?todayStr():null}).eq('id',id);await loadTodos();renderTodo();}catch(e){toast('Failed to update task');console.error(e);}
 }
 
 function editTodo(id){
