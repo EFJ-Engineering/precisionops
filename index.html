@@ -1201,7 +1201,8 @@ async function loadSettings(){
   const sv=localStorage.getItem('po-theme');if(sv)setTheme(sv);
   try{
     // First try own preferences
-    const{data:own}=await sb.from('user_preferences').select('*').eq('id',CU.id).single().catch(()=>({data:null}));
+    let _pref={data:null};try{_pref=await sb.from('user_preferences').select('*').eq('id',CU.id).single();}catch(e){}
+const{data:own}=_pref||{data:null};
     if(own){settings={...settings,...own};if(own.theme)setTheme(own.theme);}
     // Always load shared branding from any manager record (company_name, company_logo, job_prefix)
     const{data:shared}=await sb.from('user_preferences').select('company_name,company_logo,job_prefix').not('company_name','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
@@ -1256,15 +1257,17 @@ async function saveSettings(){
   const nm=(document.getElementById('setCN').value.trim()||'PrecisionOps');
   const jp=(document.getElementById('setJP').value.trim().toUpperCase()||'JOB');
   settings.company_name=nm;settings.job_prefix=jp;
-  await sb.from('user_preferences').upsert({
-    id:CU.id,
-    company_name:nm,
-    company_logo:settings.company_logo||'',
-    company_logo_url:settings.company_logo_url||settings.company_logo||'',
-    theme:settings.theme,
-    job_prefix:jp
-  });
-  applyBranding();toast('Settings saved');
+  try{
+    await sb.from('user_preferences').upsert({
+      id:CU.id,
+      company_name:nm,
+      company_logo:settings.company_logo||'',
+      company_logo_url:settings.company_logo_url||settings.company_logo||'',
+      theme:settings.theme,
+      job_prefix:jp
+    });
+    applyBranding();toast('Settings saved');
+  }catch(e){applyBranding();alert('Settings could not be saved. Please check your connection.');console.error(e);}
 }
 
 // ══ AUTH ══
@@ -1321,7 +1324,7 @@ async function runSchemaMigrations(){
 
 async function bootstrapApp(){loading(true,'Loading your workspace...');startBsTimeout();try{
   // Safe schema check — only runs if tables exist, never drops data
-  await runSchemaMigrations().catch(e=>console.warn('Migration skipped:',e));const{data:prof}=await sb.from('profiles').select('*').eq('id',CU.id).single();CP=prof||{id:CU.id,first_name:CU.user_metadata?.first_name||CU.email.split('@')[0],last_name:CU.user_metadata?.last_name||'',role:'user',status:'pending'};if(!prof)await sb.from('profiles').upsert({id:CU.id,first_name:CP.first_name,last_name:CP.last_name,role:'user',status:'pending'}).catch(()=>{});
+  await runSchemaMigrations().catch(e=>console.warn('Migration skipped:',e));const{data:prof}=await sb.from('profiles').select('*').eq('id',CU.id).single();CP=prof||{id:CU.id,first_name:CU.user_metadata?.first_name||CU.email.split('@')[0],last_name:CU.user_metadata?.last_name||'',role:'user',status:'pending'};if(!prof)try{await sb.from('profiles').upsert({id:CU.id,first_name:CP.first_name,last_name:CP.last_name,role:'user',status:'pending'});}catch(e){}
     // Block pending users
     // Ensure status defaults to active if not set (backwards compat)
     if(!CP.status)CP.status='active';
@@ -1364,7 +1367,7 @@ async function loadPendingUsers(){const{data}=await sb.from('profiles').select('
 async function loadNotifications(){try{const{data}=await sb.from('notifications').select('*').eq('profile_id',CU.id).eq('read',false).order('created_at',{ascending:false});D.notifications=data||[];}catch(e){D.notifications=[];}}
 async function loadTodos(){try{const{data}=await sb.from('todos').select('*').eq('profile_id',CU.id).order('created_at',{ascending:false});D.todos=data||[];}catch(e){D.todos=[];}}
 async function loadPurchases(){try{const{data}=await sb.from('purchases').select('*').order('created_at',{ascending:false});D.purchases=data||[];}catch(e){D.purchases=[];}}
-async function markNotifRead(id){await sb.from('notifications').update({read:true}).eq('id',id).catch(()=>{});await loadNotifications();renderDash();}
+async function markNotifRead(id){try{await sb.from('notifications').update({read:true}).eq('id',id);}catch(e){}await loadNotifications();renderDash();}
 
 async function loadHolidays(){try{const{data}=await sb.from('schedule').select('*').eq('type','leave').order('date');D.holidays=data||[];}catch(e){D.holidays=[];}}
 async function addHolidayRange(){
@@ -1379,12 +1382,14 @@ async function addHolidayRange(){
   while(d<=end){const dow=d.getDay();if(dow!==0&&dow!==6){entries.push({staff_id:sid,date:d.toISOString().split('T')[0],type:'leave',hours:8,note,created_by:CU.id});}d.setDate(d.getDate()+1);}
   if(!entries.length){alert('No working days in selected range');return;}
   loading(true,'Adding holidays...');
+  try{
   await sb.from('schedule').insert(entries);
   await aLog('ADD_HOLIDAY','schedule','range',{staff:sNm(sid),from,to,note});
   await loadSched();loading(false);
   document.getElementById('holFrom').value='';document.getElementById('holTo').value='';document.getElementById('holNote').value='';
   renderHolidayList();renderSched();
   toast(`${entries.length} holiday days added ✓`);
+  }catch(e){loading(false);alert('Failed to add holidays. Please check your connection.');console.error(e);}
 }
 function renderHolidayList(){
   const today=new Date().toISOString().split('T')[0];
@@ -1695,14 +1700,15 @@ function renderProdBoard(jobs,canEdit){
 
 async function updateLIStatus(liId,jobId,status){
   if(!status)return;
-  await sb.from('job_line_items').update({status}).eq('id',liId);
-  // Reload and check if all complete
-  const lis=await loadLineItems(jobId);
-  D.lineItems[jobId]=lis;
-  const allDone=lis.length>0&&lis.every(li=>li.status==='Complete');
-  if(allDone){await sb.from('jobs').update({progress:100}).eq('id',jobId);}
-  else{const done=lis.filter(li=>li.status==='Complete').length;const prog=Math.round((done/lis.length)*100);await sb.from('jobs').update({progress:prog}).eq('id',jobId);}
-  await loadJobs();renderJobs();renderDash();toast('Operation updated');
+  try{
+    await sb.from('job_line_items').update({status}).eq('id',liId);
+    const lis=await loadLineItems(jobId);
+    D.lineItems[jobId]=lis;
+    const allDone=lis.length>0&&lis.every(li=>li.status==='Complete');
+    if(allDone){await sb.from('jobs').update({progress:100}).eq('id',jobId);}
+    else{const done=lis.filter(li=>li.status==='Complete').length;const prog=Math.round((done/lis.length)*100);await sb.from('jobs').update({progress:prog}).eq('id',jobId);}
+    await loadJobs();renderJobs();renderDash();toast('Operation updated');
+  }catch(e){toast('Failed to update — check your connection');console.error(e);}
 }
 
 async function quickStatus(id,val){
@@ -1725,19 +1731,23 @@ async function quickStatus(id,val){
     return;
   }
   const prevStatus=j?.status||'Queued';
+  try{
   await sb.from('jobs').update({status:val}).eq('id',id);
   await aLog('UPDATE_JOB_STATUS','jobs',id,{status:val});
   await loadJobs();renderJobs();renderDash();
   const _ut=document.getElementById('toast');
   _ut.innerHTML=`Status → <strong>${val}</strong>  <button onclick="sb.from('jobs').update({status:'${prevStatus}'}).eq('id','${id}').then(()=>loadJobs().then(()=>{renderJobs();renderDash();}));this.closest('#toast').classList.remove('show')" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;margin-left:4px">↩ Undo</button>`;
   _ut.classList.add('show');setTimeout(()=>{_ut.classList.remove('show');_ut.innerHTML='';},5000);
+  }catch(e){loading(false);toast('Failed to update status — check your connection');console.error(e);}
 }
 
 async function quickInvoice(id,val){
   if(!val)return;
-  await sb.from('jobs').update({invoice_status:val}).eq('id',id);
-  await aLog('UPDATE_INVOICE_STATUS','jobs',id,{invoice_status:val});
-  await loadJobs();renderJobs();renderDash();toast('Invoice status updated');
+  try{
+    await sb.from('jobs').update({invoice_status:val}).eq('id',id);
+    await aLog('UPDATE_INVOICE_STATUS','jobs',id,{invoice_status:val});
+    await loadJobs();renderJobs();renderDash();toast('Invoice status updated');
+  }catch(e){toast('Failed to update — check your connection');console.error(e);}
 }
 
 async function saveCompletion(){
@@ -1745,12 +1755,23 @@ async function saveCompletion(){
   const ship=document.getElementById('complShip').value;
   const data={status:'Complete',progress:100,completed_date:document.getElementById('complDate').value||new Date().toISOString().split('T')[0],shipping_method:ship,courier_name:ship==='Courier'?document.getElementById('complCourier').value:'',tracking_number:ship==='Courier'?document.getElementById('complTracking').value:'',delivery_notes:document.getElementById('complDelivNotes').value,invoice_status:document.getElementById('complInvSt').value,invoice_number:document.getElementById('complInvNum').value,invoice_date:document.getElementById('complInvDate').value||null};
   loading(true,'Saving...');
-  await sb.from('jobs').update(data).eq('id',id);
-  await aLog('COMPLETE_JOB','jobs',id,{invoice_status:data.invoice_status});
-  await loadJobs();loading(false);closeModal('complete');renderJobs();renderDash();toast('Job marked as complete ✓');
+  try{
+    await sb.from('jobs').update(data).eq('id',id);
+    await aLog('COMPLETE_JOB','jobs',id,{invoice_status:data.invoice_status});
+    await loadJobs();loading(false);closeModal('complete');renderJobs();renderDash();toast('Job marked as complete ✓');
+  }catch(e){loading(false);alert('Failed to save completion details. Please check your connection.');console.error(e);}
 }
 
-async function deleteJob(id){if(!confirm('Delete this job and all its operations?'))return;await sb.from('job_line_items').delete().eq('job_id',id);await sb.from('jobs').delete().eq('id',id);await aLog('DELETE_JOB','jobs',id);await loadJobs();renderJobs();renderDash();toast('Job deleted');}
+async function deleteJob(id){
+  if(!confirm('Delete this job and all its operations?'))return;
+  loading(true,'Deleting...');
+  try{
+    await sb.from('job_line_items').delete().eq('job_id',id);
+    await sb.from('jobs').delete().eq('id',id);
+    await aLog('DELETE_JOB','jobs',id);
+    await loadJobs();loading(false);renderJobs();renderDash();toast('Job deleted');
+  }catch(e){loading(false);alert('Failed to delete job. Please check your connection.');console.error(e);}
+}
 
 async function saveJob(){
   const editId=document.getElementById('jEId').value;
@@ -1763,19 +1784,20 @@ async function saveJob(){
   if(!data.name){alert('Please enter a job name');return;}
   loading(true,'Saving job...');
   let jobId=editId;
+  try{
   if(editId){await sb.from('jobs').update(data).eq('id',editId);await sb.from('job_line_items').delete().eq('job_id',editId);await aLog('UPDATE_JOB','jobs',editId,{name:data.name});}
   else{const{data:nj}=await sb.from('jobs').insert(data).select().single();jobId=nj.id;await aLog('CREATE_JOB','jobs',jobId,{name:data.name,client:data.client});}
   if(_liItems.length&&jobId){await sb.from('job_line_items').insert(_liItems.map((li,i)=>({job_id:jobId,line_number:i+1,description:li.description,quantity:parseInt(li.quantity)||1,machine_id:li.machine_id||null,assigned_staff_id:li.assigned_staff_id||null,estimated_hours:parseFloat(li.estimated_hours)||0,materials_required:li.materials_required||'',tooling_required:li.tooling_required||'',status:li.status||'Not Started'})));}
   // Save multi-assignees
   const selAssignees=getSelJobAssignees();
   if(jobId){
-    await sb.from('job_assignees').delete().eq('job_id',jobId).catch(()=>{});
-    if(selAssignees.length){await sb.from('job_assignees').insert(selAssignees.map(sid=>({job_id:jobId,staff_id:sid,profile_id:D.staff.find(s=>s.id===sid)?.profile_id||null}))).catch(()=>{});}
+    try{await sb.from('job_assignees').delete().eq('job_id',jobId);}catch(e){}
+    if(selAssignees.length){try{await sb.from('job_assignees').insert(selAssignees.map(sid=>({job_id:jobId,staff_id:sid,profile_id:D.staff.find(s=>s.id===sid)?.profile_id||null})));}catch(e){}}
   }
   // Priority change notification
   if(priorityChanged&&oldJob&&jobId){
     const assignedIds=selAssignees.length?selAssignees:(D.jobAssignees[jobId]||[]);
-    await sb.from('notifications').insert(assignedIds.map(sid=>({profile_id:D.staff.find(s=>s.id===sid)?.profile_id,job_id:jobId,message:`Job ${data.job_number} priority changed from ${oldJob.priority} to ${newPriority}`,type:'priority_change',read:false}))).catch(()=>{});
+    try{await sb.from('notifications').insert(assignedIds.map(sid=>({profile_id:D.staff.find(s=>s.id===sid)?.profile_id,job_id:jobId,message:`Job ${data.job_number} priority changed from ${oldJob.priority} to ${newPriority}`,type:'priority_change',read:false})));}catch(e){}
     toast(`⚠ Priority changed — ${assignedIds.length} user${assignedIds.length!==1?'s':''} notified`);
   }
   // Auto-schedule
@@ -1783,6 +1805,7 @@ async function saveJob(){
   // Reload line items into cache
   if(jobId){const lis=await loadLineItems(jobId);D.lineItems[jobId]=lis;}
   await loadJobs();loading(false);closeModal('job');renderJobs();renderDash();toast(editId?'Job updated':'Job created ✓');
+  }catch(e){loading(false);alert('Failed to save job. Please check your connection and try again.');console.error(e);}
 }
 
 async function autoSched(jobId,weekStart,jobNum,jobName){
@@ -1794,7 +1817,13 @@ async function autoSched(jobId,weekStart,jobNum,jobName){
     const d=new Date(start);d.setDate(d.getDate()+i%5);
     entries.push({staff_id:li.assigned_staff_id,machine_id:li.machine_id||null,date:d.toISOString().split('T')[0],type:'production',hours:Math.max(1,Math.ceil(parseFloat(li.estimated_hours)||8)),note:`${jobNum} – ${li.description}`,created_by:CU.id});
   });
-  if(entries.length){await sb.from('schedule').insert(entries);await loadSched();toast(`${entries.length} operations scheduled into production schedule ✓`);}
+  if(entries.length){
+    try{
+      await sb.from('schedule').insert(entries);
+      await loadSched();
+      toast(`${entries.length} operations scheduled into production schedule ✓`);
+    }catch(e){toast('Some schedule entries could not be saved');console.error(e);}
+  }
 }
 
 // ══ JOB DETAIL VIEW (read-only for employees) ══
@@ -1952,11 +1981,11 @@ async function genJobCard(jobId){
       week_number:wk,
       week_year:yr,
       created_by:CU.id
-    },{onConflict:'job_id'}).catch(()=>{});
+    },{onConflict:'job_id'});
   }catch(storageErr){
     // Fallback: save base64 if Storage fails
     console.warn('Storage upload failed, saving base64:',storageErr);
-    await sb.from('job_cards').upsert({job_id:j.id,job_number:j.job_number,client:j.client,pdf_data:pdfData,week_number:wk,week_year:yr,created_by:CU.id},{onConflict:'job_id'}).catch(()=>{});
+    await sb.from('job_cards').upsert({job_id:j.id,job_number:j.job_number,client:j.client,pdf_data:pdfData,week_number:wk,week_year:yr,created_by:CU.id},{onConflict:'job_id'});
   }
   await loadJobCards();
   // Download
@@ -2169,6 +2198,25 @@ function renderWeekCal(canEdit){
   document.getElementById('schedContainer').innerHTML=html;
 }
 
+async function saveSchedEntry(){
+  const mid=document.getElementById('schedMach').value||null;
+  const dt=document.getElementById('schedDate').value;
+  const sid=document.getElementById('schedStaff').value;
+  const eid=document.getElementById('schedEditId').value;
+  if(!sid||!dt){alert('Please select a staff member and date');return;}
+  if(mid&&dt&&!eid){
+    const c=D.schedule.filter(e=>e.machine_id===mid&&e.date===dt);
+    if(c.length&&!confirm(`⚠ Machine conflict — already booked for ${c.map(e=>sNm(e.staff_id)).join(' & ')}. Add anyway?`))return;
+  }
+  const data={staff_id:sid,machine_id:mid,date:dt,type:document.getElementById('schedType').value,hours:parseInt(document.getElementById('schedHours').value)||8,note:document.getElementById('schedNote').value,created_by:CU.id};
+  loading(true,'Saving...');
+  try{
+    if(eid){await sb.from('schedule').update(data).eq('id',eid);toast('Entry updated');}
+    else{await sb.from('schedule').insert(data);toast('Entry added');}
+    await loadSched();loading(false);closeModal('sched');renderSched();
+  }catch(e){loading(false);alert('Failed to save schedule entry. Please check your connection.');console.error(e);}
+}
+
 // ══ PROJECTS ══
 let _projImgs=[];
 function addProjImages(e){
@@ -2248,7 +2296,17 @@ async function editProjModal(id){
   if(existingImgs.length)document.getElementById('projImgPrev').innerHTML+=existingImgs.map(img=>`<div style="position:relative"><img src="${img.data_url}" style="height:52px;width:68px;object-fit:cover;border-radius:4px;border:2px solid var(--green)" title="Existing"><div style="position:absolute;bottom:-2px;left:0;right:0;text-align:center;font-size:9px;color:var(--green)">saved</div></div>`).join('');
 }
 
-async function deleteProject(id){if(!confirm('Delete this project?'))return;await sb.from('project_members').delete().eq('project_id',id);await sb.from('project_images').delete().eq('project_id',id);await sb.from('projects').delete().eq('id',id);await aLog('DELETE_PROJECT','projects',id);await loadProjects();renderProjects();renderDash();toast('Project deleted');}
+async function deleteProject(id){
+  if(!confirm('Delete this project?'))return;
+  loading(true,'Deleting...');
+  try{
+    await sb.from('project_members').delete().eq('project_id',id);
+    await sb.from('project_images').delete().eq('project_id',id);
+    await sb.from('projects').delete().eq('id',id);
+    await aLog('DELETE_PROJECT','projects',id);
+    await loadProjects();loading(false);renderProjects();renderDash();toast('Project deleted');
+  }catch(e){loading(false);alert('Failed to delete project.');console.error(e);}
+}
 
 async function saveProject(){
   const eid=document.getElementById('pEId').value;
@@ -2262,9 +2320,8 @@ async function saveProject(){
   // Members
   const members=getSelProjMembers();
   await sb.from('project_members').delete().eq('project_id',pid);
-  if(members.length)await sb.from('project_members').insert(members.map(sid=>({project_id:pid,staff_id:sid})));
-  // Images
-  if(_projImgs.length)await sb.from('project_images').insert(_projImgs.map(img=>({project_id:pid,name:img.name,data_url:img.data_url,created_by:CU.id})));
+  if(members.length){try{await sb.from('project_members').insert(members.map(sid=>({project_id:pid,staff_id:sid})));}catch(e){console.warn('Members save failed:',e);}}
+  if(_projImgs.length){try{await sb.from('project_images').insert(_projImgs.map(img=>({project_id:pid,name:img.name,data_url:img.data_url,created_by:CU.id})));}catch(e){console.warn('Images save failed:',e);}}
   await loadProjects();loading(false);closeModal('proj');renderProjects();renderDash();toast(eid?'Project updated':'Project created');
   }catch(e){loading(false);alert('Error saving project. Please check your connection and try again.');console.error(e);}
 }
@@ -2358,23 +2415,27 @@ const closeStaffPanel=()=>document.getElementById('staffPanel').classList.remove
 async function approveUser(uid){
   const roleEl=document.getElementById('role_'+uid);
   const role=roleEl?roleEl.value:'user';
+  try{
   await sb.from('profiles').update({status:'active',role}).eq('id',uid);
   await aLog('APPROVE_USER','profiles',uid,{role});
   await loadPendingUsers();
   renderStaff();renderDash();
   toast('User approved ✓');
+  }catch(e){alert('Failed to approve user. Please try again.');console.error(e);}
 }
 async function rejectUser(uid,name){
   if(!confirm(`Reject account application for ${name}?\n\nThis will prevent them logging in. Note: to fully remove their account, also delete them from Supabase Dashboard → Authentication → Users.`))return;
+  try{
   await sb.from('profiles').update({status:'rejected'}).eq('id',uid);
   await aLog('REJECT_USER','profiles',uid,{name});
   await loadPendingUsers();
   renderStaff();renderDash();
   toast('Application rejected — remember to delete from Supabase Auth if needed');
+  }catch(e){alert('Failed to reject user. Please try again.');console.error(e);}
 }
 
 function editStaff(id){const s=D.staff.find(x=>x.id===id);if(!s)return;openModal('staff');document.getElementById('staffMT').textContent='Edit Staff Member';document.getElementById('stEId').value=id;document.getElementById('stF').value=s.first_name;document.getElementById('stL').value=s.last_name;document.getElementById('stR').value=s.role;document.getElementById('stEm').value=s.email||'';document.getElementById('stPh').value=s.phone||'';document.getElementById('stSt').value=s.status||'Active';document.getElementById('stDob').value=s.date_of_birth||'';document.getElementById('stColor').value=s.avatar_color||'#f0a500';}
-async function delStaff(id){if(!confirm('Remove this staff member?'))return;await sb.from('staff').delete().eq('id',id);await aLog('DELETE_STAFF','staff',id);await loadStaff();renderStaff();renderDash();toast('Staff member removed');}
+async function delStaff(id){if(!confirm('Remove this staff member?'))return;try{await sb.from('staff').delete().eq('id',id);await aLog('DELETE_STAFF','staff',id);await loadStaff();renderStaff();renderDash();toast('Staff member removed');}catch(e){alert('Failed to remove staff member.');console.error(e);}}
 async function saveStaff(){const eid=document.getElementById('stEId').value;const data={first_name:document.getElementById('stF').value,last_name:document.getElementById('stL').value,role:document.getElementById('stR').value,email:document.getElementById('stEm').value,phone:document.getElementById('stPh').value,status:document.getElementById('stSt').value,date_of_birth:document.getElementById('stDob').value||null,avatar_color:document.getElementById('stColor').value||'#f0a500'};if(!data.first_name){alert('Please enter a name');return;}loading(true,'Saving...');try{if(eid){await sb.from('staff').update(data).eq('id',eid);await aLog('UPDATE_STAFF','staff',eid,{name:`${data.first_name} ${data.last_name}`});toast('Staff updated');}else{await sb.from('staff').insert(data);await aLog('CREATE_STAFF','staff','new',{name:`${data.first_name} ${data.last_name}`});toast('Staff member added');}await loadStaff();loading(false);closeModal('staff');renderStaff();renderDash();}catch(e){loading(false);alert('Error saving staff member. Please check your connection and try again.');console.error(e);}}
 
 // ══ SALES ══
@@ -2406,15 +2467,23 @@ function renderSales(){
     }).join(''):'<div style="padding:11px 7px;text-align:center;font-size:12px;color:var(--muted)">Empty</div>'}</div></div>`;
   }).join('');
 }
-async function quickStage(id,stage){if(!stage)return;const p=D.prospects.find(x=>x.id===id);if(!p)return;const log=[...(p.activity_log||[]),{date:new Date().toISOString().split('T')[0],text:`Moved to: ${STAGES.find(s=>s.key===stage)?.label}`}];await sb.from('prospects').update({stage,activity_log:log}).eq('id',id);await loadProspects();renderSales();renderDash();toast('Stage updated');}
-async function delProspect(id){if(!confirm('Remove this company?'))return;await sb.from('prospects').delete().eq('id',id);await loadProspects();renderSales();renderDash();toast('Removed');}
+async function quickStage(id,stage){
+  if(!stage)return;
+  const p=D.prospects.find(x=>x.id===id);if(!p)return;
+  const log=[...(p.activity_log||[]),{date:new Date().toISOString().split('T')[0],text:`Moved to: ${STAGES.find(s=>s.key===stage)?.label}`}];
+  try{
+    await sb.from('prospects').update({stage,activity_log:log}).eq('id',id);
+    await loadProspects();renderSales();renderDash();toast('Stage updated');
+  }catch(e){toast('Failed to update stage');console.error(e);}
+}
+async function delProspect(id){if(!confirm('Remove this company?'))return;try{await sb.from('prospects').delete().eq('id',id);await loadProspects();renderSales();renderDash();toast('Removed');}catch(e){alert('Failed to remove. Please try again.');console.error(e);}}
 function editProspect(id){const p=D.prospects.find(x=>x.id===id);if(!p)return;openModal('prosp');document.getElementById('prospMT').textContent='Edit Company';document.getElementById('prEId').value=id;document.getElementById('prCo').value=p.company;document.getElementById('prSec').value=p.sector;document.getElementById('prStg').value=p.stage;document.getElementById('prCn').value=p.contact_name||'';document.getElementById('prCr').value=p.contact_role||'';document.getElementById('prEm').value=p.email||'';document.getElementById('prPh').value=p.phone||'';document.getElementById('prPri').value=p.priority;document.getElementById('prFu').value=p.followup_date||'';document.getElementById('prWeb').value=p.website||'';document.getElementById('prNotes').value=p.notes||'';}
 async function saveProspect(){const eid=document.getElementById('prEId').value;const data={company:document.getElementById('prCo').value,sector:document.getElementById('prSec').value,stage:document.getElementById('prStg').value,contact_name:document.getElementById('prCn').value,contact_role:document.getElementById('prCr').value,email:document.getElementById('prEm').value,phone:document.getElementById('prPh').value,priority:document.getElementById('prPri').value,followup_date:document.getElementById('prFu').value||null,website:document.getElementById('prWeb').value,notes:document.getElementById('prNotes').value,created_by:CU.id};if(!data.company){alert('Please enter a company name');return;}loading(true,'Saving...');try{if(eid){await sb.from('prospects').update(data).eq('id',eid);toast('Updated');}else{await sb.from('prospects').insert({...data,activity_log:[]});toast('Company added');}await loadProspects();loading(false);closeModal('prosp');renderSales();renderDash();}catch(e){loading(false);alert('Error saving company. Please check your connection and try again.');console.error(e);}}
 function openDetail(id){const p=D.prospects.find(x=>x.id===id);if(!p)return;const st=STAGES.find(s=>s.key===p.stage);const od=isOD(p.followup_date);const td=isToday(p.followup_date);document.getElementById('detContent').innerHTML=`<div style="margin-bottom:15px"><div style="display:flex;align-items:center;gap:7px;margin-bottom:5px"><span class="badge ${p.priority==='High'?'bhi':p.priority==='Low'?'blo':'bme'}">${p.priority}</span><span class="badge bme">${st?.label}</span></div><div style="font-family:var(--head);font-size:22px;font-weight:800;margin-bottom:2px">${p.company}</div><div style="font-size:13px;color:var(--muted)">${p.sector}</div>${p.website?`<a href="${p.website}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:var(--blue);text-decoration:none">🔗 ${p.website}</a>`:''}</div>${p.contact_name||p.email?`<div style="margin-bottom:13px"><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Contact</div>${p.contact_name?`<div style="font-size:14px;font-weight:600">${p.contact_name}</div>`:''}${p.contact_role?`<div style="font-size:12px;color:var(--muted);margin-bottom:5px">${p.contact_role}</div>`:''}${p.email?`<div style="font-size:13px;margin-bottom:2px">✉ <a href="mailto:${p.email}" style="color:var(--blue);text-decoration:none">${p.email}</a></div>`:''}${p.phone?`<div style="font-size:13px">📞 ${p.phone}</div>`:''}</div>`:''}${p.followup_date?`<div style="margin-bottom:13px"><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Follow-up</div><span class="badge ${od?'boh':td?'bme':'bc'}">${od?'⚠ Overdue: ':td?'📅 Today: ':'📅 '}${fmt(p.followup_date)}</span></div>`:''}${p.notes?`<div style="margin-bottom:13px"><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Notes</div><div style="font-size:13px;color:var(--muted);line-height:1.6">${p.notes}</div></div>`:''}
 <div><div style="font-family:var(--head);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Activity Log</div><div>${(p.activity_log||[]).slice().reverse().map(l=>`<div class="ni"><div class="nd">${fmt(l.date)}</div><div>${l.text}</div></div>`).join('')||'<div style="font-size:12px;color:var(--muted)">No activity logged.</div>'}</div>
 <div class="nar"><input class="fi2" id="nni" placeholder="Log a call, email, update..." onkeydown="if(event.key==='Enter')addNote('${p.id}')"><button class="btn btn-p btn-s" onclick="addNote('${p.id}')">Add</button></div></div>`;
 document.getElementById('detPanel').classList.add('open');}
-async function addNote(id){const inp=document.getElementById('nni');const txt=inp.value.trim();if(!txt)return;const p=D.prospects.find(x=>x.id===id);if(!p)return;const log=[...(p.activity_log||[]),{date:new Date().toISOString().split('T')[0],text:txt}];await sb.from('prospects').update({activity_log:log}).eq('id',id);await loadProspects();inp.value='';openDetail(id);renderSales();toast('Note added');}
+async function addNote(id){const inp=document.getElementById('nni');const txt=inp.value.trim();if(!txt)return;const p=D.prospects.find(x=>x.id===id);if(!p)return;const log=[...(p.activity_log||[]),{date:new Date().toISOString().split('T')[0],text:txt}];try{await sb.from('prospects').update({activity_log:log}).eq('id',id);await loadProspects();inp.value='';openDetail(id);renderSales();toast('Note added');}catch(e){toast('Failed to save note');console.error(e);}}
 const closeDetail=()=>document.getElementById('detPanel').classList.remove('open');
 
 // ══ WIKI ══
@@ -2441,7 +2510,7 @@ function renderWArt(art){
   document.getElementById('wikiArticleArea').innerHTML=`<div style="border-bottom:1px solid var(--border);margin-bottom:16px;padding-bottom:14px"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:9px"><div><span class="badge bme" style="margin-bottom:7px;display:inline-block">${WICK[art.category]} ${art.category}</span><div class="wat">${art.title}</div></div><div style="display:flex;gap:5px;flex-shrink:0"><button class="btn btn-g btn-s" onclick="editWArt('${art.id}')">✏ Edit</button>${isMgr()?`<button class="btn btn-d btn-s" onclick="delWArt('${art.id}')">Del</button>`:''}</div></div><div class="wam"><span>✍ ${art.author_name}</span><span>📅 ${fmt((art.updated_at||'').split('T')[0])}</span></div><div style="display:flex;gap:4px;flex-wrap:wrap">${(art.tags||[]).map(t=>`<span class="wtag">${t}</span>`).join('')}</div></div><div class="wb">${pc(art.content)}</div>`;
 }
 function editWArt(id){const art=D.wiki.find(a=>a.id===id);if(!art)return;openModal('wiki');document.getElementById('wikiMT').textContent='Edit Article';document.getElementById('wEId').value=id;document.getElementById('wTitle').value=art.title;document.getElementById('wCat').value=art.category;document.getElementById('wTags').value=(art.tags||[]).join(', ');document.getElementById('wContent').value=art.content;_wImgs=art.images?[...art.images]:[];renderWIP();}
-async function delWArt(id){if(!confirm('Delete this article?'))return;await sb.from('wiki_articles').delete().eq('id',id);await aLog('DELETE_WIKI','wiki_articles',id);wikiArt=null;await loadWiki();renderWiki();toast('Article deleted');}
+async function delWArt(id){if(!confirm('Delete this article?'))return;try{await sb.from('wiki_articles').delete().eq('id',id);await aLog('DELETE_WIKI','wiki_articles',id);wikiArt=null;await loadWiki();renderWiki();toast('Article deleted');}catch(e){alert('Failed to delete article.');console.error(e);}}
 const openWikiEditor=()=>{document.getElementById('wikiMT').textContent='New Article';document.getElementById('wEId').value='';['wTitle','wTags','wContent'].forEach(id=>document.getElementById(id).value='');_wImgs=[];renderWIP();document.getElementById('modal-wiki').classList.add('open');};
 function wFmt(t){const ta=document.getElementById('wContent');const s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.substring(s,e);const bef=ta.value.substring(0,s),aft=ta.value.substring(e);const ins={bold:`**${sel||'bold text'}**`,italic:`*${sel||'italic'}*`,h2:`\n## ${sel||'Heading'}\n`,h3:`\n### ${sel||'Sub-heading'}\n`,ul:`\n- ${sel||'Item'}\n`,ol:`\n1. ${sel||'Item'}\n`,warn:`\n[WARN] ${sel||'Warning'}\n`,tip:`\n[TIP] ${sel||'Tip'}\n`,step:`\n[STEP] ${sel||'Step'}\n`}[t];ta.value=bef+ins+aft;ta.focus();ta.selectionStart=ta.selectionEnd=s+ins.length;}
 async function wikiInsertImg(e){
@@ -2464,10 +2533,10 @@ async function wikiInsertImg(e){
   e.target.value='';
 }
 function renderWIP(){document.getElementById('wImgPrev').innerHTML=_wImgs.map((img,i)=>`<div style="position:relative"><img src="${img.dataUrl}" style="height:48px;width:64px;object-fit:cover;border-radius:4px;border:1px solid var(--border)"><button onclick="_wImgs.splice(${i},1);renderWIP()" style="position:absolute;top:-4px;right:-4px;background:var(--red);border:none;color:#fff;border-radius:50%;width:13px;height:13px;font-size:9px;cursor:pointer;line-height:13px;text-align:center">✕</button></div>`).join('');}
-async function submitWiki(){const eid=document.getElementById('wEId').value;const title=document.getElementById('wTitle').value.trim();if(!title){alert('Please enter a title');return;}const data={title,category:document.getElementById('wCat').value,tags:document.getElementById('wTags').value.split(',').map(t=>t.trim()).filter(Boolean),content:document.getElementById('wContent').value,images:_wImgs,author_name:CP?`${CP.first_name} ${CP.last_name}`:'Unknown',submitted_by:CU.id};loading(true,'Saving...');if(eid){await sb.from('wiki_articles').update({...data,updated_at:new Date().toISOString()}).eq('id',eid);await aLog('UPDATE_WIKI','wiki_articles',eid,{title});toast('Article updated');}else{await sb.from('wiki_articles').insert({...data,status:'pending'});await aLog('SUBMIT_WIKI','wiki_articles','new',{title});toast('Submitted for approval ✓');}await loadWiki();loading(false);closeModal('wiki');renderWiki();}
+async function submitWiki(){const eid=document.getElementById('wEId').value;const title=document.getElementById('wTitle').value.trim();if(!title){alert('Please enter a title');return;}const data={title,category:document.getElementById('wCat').value,tags:document.getElementById('wTags').value.split(',').map(t=>t.trim()).filter(Boolean),content:document.getElementById('wContent').value,images:_wImgs,author_name:CP?`${CP.first_name} ${CP.last_name}`:'Unknown',submitted_by:CU.id};loading(true,'Saving...');try{if(eid){await sb.from('wiki_articles').update({...data,updated_at:new Date().toISOString()}).eq('id',eid);await aLog('UPDATE_WIKI','wiki_articles',eid,{title});toast('Article updated');}else{await sb.from('wiki_articles').insert({...data,status:'pending'});await aLog('SUBMIT_WIKI','wiki_articles','new',{title});toast('Submitted for approval ✓');}await loadWiki();loading(false);closeModal('wiki');renderWiki();}catch(e){loading(false);alert('Failed to save article. Please check your connection.');console.error(e);}}
 function renderApprovals(){document.getElementById('apprList').innerHTML=D.wikiPend.length?D.wikiPend.map(a=>`<div class="appr"><div style="font-family:var(--head);font-size:14px;font-weight:700;margin-bottom:2px">${a.title}</div><div style="font-size:12px;color:var(--muted);margin-bottom:7px">${WICK[a.category]} ${a.category} · ✍ ${a.author_name} · 📅 ${fmt((a.created_at||'').split('T')[0])}</div><div style="display:flex;gap:6px"><button class="btn btn-p btn-s" onclick="approveW('${a.id}')">✓ Approve</button><button class="btn btn-d btn-s" onclick="rejectW('${a.id}')">✕ Reject</button></div></div>`).join(''):'<div style="text-align:center;padding:22px;color:var(--muted)">No articles pending.</div>';}
-async function approveW(id){await sb.from('wiki_articles').update({status:'published',approved_by:CU.id,approved_at:new Date().toISOString()}).eq('id',id);await aLog('APPROVE_WIKI','wiki_articles',id);await loadWiki();renderApprovals();renderWiki();renderDash();toast('Article published ✓');if(!D.wikiPend.length)closeModal('wikiappr');}
-async function rejectW(id){if(!confirm('Reject this submission?'))return;await sb.from('wiki_articles').update({status:'rejected'}).eq('id',id);await aLog('REJECT_WIKI','wiki_articles',id);await loadWiki();renderApprovals();renderWiki();toast('Article rejected');}
+async function approveW(id){try{await sb.from('wiki_articles').update({status:'published',approved_by:CU.id,approved_at:new Date().toISOString()}).eq('id',id);await aLog('APPROVE_WIKI','wiki_articles',id);await loadWiki();renderApprovals();renderWiki();renderDash();toast('Article published ✓');if(!D.wikiPend.length)closeModal('wikiappr');}catch(e){alert('Failed to approve article.');console.error(e);}}
+async function rejectW(id){if(!confirm('Reject this submission?'))return;try{await sb.from('wiki_articles').update({status:'rejected'}).eq('id',id);await aLog('REJECT_WIKI','wiki_articles',id);await loadWiki();renderApprovals();renderWiki();toast('Article rejected');}catch(e){alert('Failed to reject article.');console.error(e);}}
 
 // ══ TO-DO ══
 const setTodoFilter=f=>{todoFilter=f;['all','open','done'].forEach(x=>document.getElementById('td-'+x)?.classList.toggle('active',x===f));renderTodo();};
@@ -2500,8 +2569,7 @@ function renderTodo(){
 }
 
 async function toggleTodo(id,completed){
-  await sb.from('todos').update({completed,completed_date:completed?new Date().toISOString().split('T')[0]:null}).eq('id',id);
-  await loadTodos();renderTodo();
+  try{await sb.from('todos').update({completed,completed_date:completed?new Date().toISOString().split('T')[0]:null}).eq('id',id);await loadTodos();renderTodo();}catch(e){toast('Failed to update task');console.error(e);}
 }
 
 function editTodo(id){
@@ -2517,8 +2585,7 @@ function editTodo(id){
 
 async function deleteTodo(id){
   if(!confirm('Delete this task?'))return;
-  await sb.from('todos').delete().eq('id',id);
-  await loadTodos();renderTodo();toast('Task deleted');
+  try{await sb.from('todos').delete().eq('id',id);await loadTodos();renderTodo();toast('Task deleted');}catch(e){alert('Failed to delete task.');console.error(e);}
 }
 
 async function saveTodo(){
@@ -2585,8 +2652,7 @@ function renderPurch(){
 
 async function quickPurchStatus(id,status){
   if(!status)return;
-  await sb.from('purchases').update({status}).eq('id',id);
-  await loadPurchases();renderPurch();toast('Status updated');
+  try{await sb.from('purchases').update({status}).eq('id',id);await loadPurchases();renderPurch();toast('Status updated');}catch(e){toast('Failed to update status');console.error(e);}
 }
 
 function editPurch(id){
@@ -2606,8 +2672,7 @@ function editPurch(id){
 
 async function deletePurch(id){
   if(!confirm('Remove this item from the purchasing list?'))return;
-  await sb.from('purchases').delete().eq('id',id);
-  await loadPurchases();renderPurch();toast('Item removed');
+  try{await sb.from('purchases').delete().eq('id',id);await loadPurchases();renderPurch();toast('Item removed');}catch(e){alert('Failed to remove item.');console.error(e);}
 }
 
 async function savePurch(){
