@@ -2146,13 +2146,13 @@ function renderJobs(){
   const hideCompleted=document.getElementById('hideCompleted')?.checked;
   let allJobs=filter?D.jobs.filter(j=>j.status===filter):D.jobs;
   if(hideCompleted)allJobs=allJobs.filter(j=>j.status!=='Complete');
+  const _myStaff=D.staff.find(s=>s.profile_id===CU.id);
+  const _myStaffId=_myStaff?.id;
   const jobs=isUser()&&!isSr()?allJobs.filter(j=>{
     const assigned=D.jobAssignees[j.id]||[];
-    const myStaff=D.staff.find(s=>s.profile_id===CU.id);
-    const myStaffId=myStaff?.id;
-    return assigned.includes(CU.id)||
-           assigned.includes(myStaffId)||
-           j.assigned_staff_id===myStaffId||
+    return assigned.includes(CU.id)||       // profile_id match
+           assigned.includes(_myStaffId)||  // staff_id match
+           j.assigned_staff_id===_myStaffId||
            j.assigned_staff_id===CU.id;
   }):allJobs;
   const c=document.getElementById('jobsContainer');
@@ -3041,7 +3041,11 @@ function renderStaff(){
   const c=document.getElementById('staffContainer');
   if(!D.staff.length){c.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="fi">👥</div><p>No staff added.</p></div>';return;}
   c.innerHTML=D.staff.map(s=>{
-    const col=s.avatar_color||'#f0a500';const jc=D.jobs.filter(j=>j.assigned_staff_id===s.id&&j.status!=='Complete').length;
+    const col=s.avatar_color||'#f0a500';const jc=D.jobs.filter(j=>{
+      if(j.status==='Complete')return false;
+      const assigned=D.jobAssignees[j.id]||[];
+      return assigned.includes(s.id)||assigned.includes(s.profile_id)||j.assigned_staff_id===s.id;
+    }).length;
     const canViewJobs=isMgr()||(isSr())||(CP?.id===s.profile_id);
     return`<div class="card" style="border-top:3px solid ${col}">
       <div style="display:flex;align-items:center;gap:11px;margin-bottom:10px">
@@ -3064,16 +3068,15 @@ function renderStaff(){
 function openStaffPanel(sid){
   const s=D.staff.find(x=>x.id===sid);if(!s)return;
   // Check both legacy single-assign field AND new multi-assign table
+  const _staffMember=D.staff.find(x=>x.id===sid);
+  const _staffProfileId=_staffMember?.profile_id;
   const assignedJobs=D.jobs.filter(j=>{
     if(j.status==='Complete')return false;
-    // Check multi-assign table (stores both staff_id and profile_id)
-    const multiAssigned=(D.jobAssignees[j.id]||[]).includes(sid);
-    // Check legacy single-assign field on job record
-    const singleAssigned=j.assigned_staff_id===sid;
-    // Check if staff member's profile_id matches any assignee
-    const staffProfile=D.staff.find(s=>s.id===sid)?.profile_id;
-    const profileAssigned=staffProfile&&(D.jobAssignees[j.id]||[]).includes(staffProfile);
-    return multiAssigned||singleAssigned||profileAssigned;
+    const assigned=D.jobAssignees[j.id]||[];
+    // Check all possible ID matches
+    return assigned.includes(sid)||                    // staff_id in multi-assign
+           (_staffProfileId&&assigned.includes(_staffProfileId))|| // profile_id in multi-assign
+           j.assigned_staff_id===sid;                  // legacy single-assign
   });
   const projMem=D.projects.filter(p=>(D.projMembers[p.id]||[]).includes(sid)||p.owner_id===sid);
   const el=document.getElementById('staffPanelContent');
