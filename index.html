@@ -1504,21 +1504,40 @@ async function loadSettings(){
     if(cached){const b=JSON.parse(cached);if(b.company_name)settings.company_name=b.company_name;if(b.company_logo)settings.company_logo=b.company_logo_url||b.company_logo;if(b.job_prefix)settings.job_prefix=b.job_prefix;applyBranding();}
   }catch(e){}
   try{
-    // First try own preferences
+    // Load own preferences (theme only - branding comes from manager's record)
     let _pref={data:null};try{_pref=await sb.from('user_preferences').select('*').eq('id',CU.id).single();}catch(e){}
-const{data:own}=_pref||{data:null};
-    if(own){settings={...settings,...own};if(own.theme)setTheme(own.theme);}
-    // Always load shared branding from any manager record (company_name, company_logo, job_prefix)
-    const{data:shared}=await sb.from('user_preferences').select('company_name,company_logo,job_prefix').not('company_name','is',null).order('updated_at',{ascending:false}).limit(1).maybeSingle();
-    if(shared){
-      // Load ALL branding including if name is 'PrecisionOps'
-      if(shared.company_name)settings.company_name=shared.company_name;
-      // Prefer storage URL over base64
-      if(shared.company_logo_url)settings.company_logo=shared.company_logo_url;
-      else if(shared.company_logo)settings.company_logo=shared.company_logo;
-      if(shared.job_prefix)settings.job_prefix=shared.job_prefix;
-      // Update localStorage cache for other users
-      try{localStorage.setItem('po-branding',JSON.stringify({company_name:settings.company_name,company_logo:settings.company_logo,company_logo_url:settings.company_logo_url||'',job_prefix:settings.job_prefix,saved:new Date().toISOString()}));}catch(e){}
+    const{data:own}=_pref||{data:null};
+    if(own?.theme)setTheme(own.theme);
+
+    // Load branding from manager's record (highest role, most recently updated)
+    // This ensures all users see the same company name/logo
+    let brandingData=null;
+    try{
+      // Try to get manager's settings first
+      const{data:mgr}=await sb.from('user_preferences')
+        .select('company_name,company_logo,company_logo_url,job_prefix,updated_at')
+        .not('company_name','is',null)
+        .order('updated_at',{ascending:false})
+        .limit(20);
+      // Pick the record with the most complete branding
+      if(mgr?.length){
+        brandingData=mgr.find(r=>r.company_name&&r.company_name!=='PrecisionOps')||mgr[0];
+      }
+    }catch(e){}
+
+    if(brandingData){
+      settings.company_name=brandingData.company_name||settings.company_name;
+      settings.job_prefix=brandingData.job_prefix||settings.job_prefix;
+      if(brandingData.company_logo_url)settings.company_logo=brandingData.company_logo_url;
+      else if(brandingData.company_logo)settings.company_logo=brandingData.company_logo;
+      // Update localStorage so other users get it instantly next load
+      try{localStorage.setItem('po-branding',JSON.stringify({
+        company_name:settings.company_name,
+        company_logo:settings.company_logo||'',
+        company_logo_url:brandingData.company_logo_url||'',
+        job_prefix:settings.job_prefix,
+        saved:new Date().toISOString()
+      }));}catch(e){}
     }
     applyBranding();
   }catch(e){applyBranding();}
@@ -1869,15 +1888,16 @@ async function loadJobs(append=false){
 async function loadMoreJobs(){jobsPage++;await loadJobs(true);renderJobs();}
 async function loadJobAssignees(){
   try{
-    const{data}=await sb.from('job_assignees').select('*');
+    const{data,error}=await sb.from('job_assignees').select('*');
+    if(error){console.error('loadJobAssignees error:',error);D.jobAssignees={};return;}
     D.jobAssignees={};
     (data||[]).forEach(r=>{
       if(!D.jobAssignees[r.job_id])D.jobAssignees[r.job_id]=[];
-      // Store both staff_id and profile_id for flexible matching
       if(r.staff_id&&!D.jobAssignees[r.job_id].includes(r.staff_id))D.jobAssignees[r.job_id].push(r.staff_id);
       if(r.profile_id&&!D.jobAssignees[r.job_id].includes(r.profile_id))D.jobAssignees[r.job_id].push(r.profile_id);
     });
-  }catch(e){D.jobAssignees={};}
+    console.log('loadJobAssignees: loaded',Object.keys(D.jobAssignees).length,'job entries');
+  }catch(e){console.error('loadJobAssignees catch:',e);D.jobAssignees={};}
 }
 async function loadLineItems(jid){const{data}=await sb.from('job_line_items').select('*').eq('job_id',jid).order('line_number');return data||[];}
 async function loadSched(){const{data}=await sb.from('schedule').select('*');D.schedule=data||[];}
